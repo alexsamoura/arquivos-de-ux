@@ -25,8 +25,15 @@ interface LiftedFolderProps {
   term: Term;
   total: number;
   progress: TermProgress;
-  width: number;
-  tab: TabGeometry;
+  /** Largura da camada da pilha onde a pasta está. */
+  sheetWidth: number;
+  /**
+   * Largura máxima, entre as paredes da gaveta, para a pasta erguida com esta
+   * altura: quanto mais alta, mais acima ela termina, onde a gaveta é mais estreita.
+   */
+  fitWidth: (height: number) => number;
+  /** Aba da pasta erguida, para a largura que ela tiver. */
+  tabForWidth: (width: number) => TabGeometry;
   onHeightChange: (height: number) => void;
   /** A pasta começou a voltar: a pilha pode recolher o espaço aberto acima dela. */
   onClosingStart: () => void;
@@ -41,19 +48,26 @@ interface LiftedFolderProps {
  * continuam por cima da base dela, e as de trás ficam atrás.
  */
 export function LiftedFolder(props: LiftedFolderProps) {
-  const { term, total, progress, width, tab, onHeightChange } = props;
+  const { term, total, progress, sheetWidth, onHeightChange } = props;
   const [closing, setClosing] = useState(false);
   const rootRef = useRef<HTMLElement>(null);
   const startedRef = useRef(false);
   const [contentRef, contentSize] = useElementSize<HTMLDivElement>();
-  const height = TAB_H + contentSize.height;
   const measured = contentSize.height > 0;
+  // A pasta erguida não pode passar das paredes onde ela termina. Estreitar faz o
+  // texto quebrar e a pasta crescer, o que a leva mais para cima e pode estreitá-la
+  // de novo; a largura só diminui, então converge em poucas renderizações. Ela só
+  // aparece quando a altura medida corresponde à largura atual (`settled`).
+  const width = measured ? Math.min(sheetWidth, props.fitWidth(TAB_H + contentSize.height)) : sheetWidth;
+  const settled = measured && contentSize.width === width;
+  const height = TAB_H + contentSize.height;
+  const tab = props.tabForWidth(width);
   // Deslocamento que põe a pasta de volta no lugar dela, em repouso na pilha.
   const restOffset = height - LIFT_BASE_Y;
 
   useLayoutEffect(() => {
-    if (measured) onHeightChange(height);
-  }, [measured, height, onHeightChange]);
+    if (settled) onHeightChange(height);
+  }, [settled, height, onHeightChange]);
 
   // A ficha abre já com a definição: conta como vista.
   useEffect(() => {
@@ -62,10 +76,10 @@ export function LiftedFolder(props: LiftedFolderProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Sobe do lugar dela na pilha assim que a altura é conhecida.
+  // Sobe do lugar dela na pilha assim que largura e altura se acertam.
   useLayoutEffect(() => {
     const root = rootRef.current;
-    if (!measured || !root || startedRef.current) return;
+    if (!settled || !root || startedRef.current) return;
     startedRef.current = true;
     focusForKeyboard(root);
     const bringIntoView = () =>
@@ -79,7 +93,7 @@ export function LiftedFolder(props: LiftedFolderProps) {
       easing: LIFT_EASE,
     });
     animation.onfinish = bringIntoView;
-  }, [measured, restOffset]);
+  }, [settled, restOffset]);
 
   /**
    * `afterClose` roda só depois que a pasta voltou: marcar "Já sabia" com o filtro
@@ -127,8 +141,13 @@ export function LiftedFolder(props: LiftedFolderProps) {
       ref={rootRef}
       tabIndex={-1}
       aria-labelledby={titleId}
-      className="absolute left-0 focus:outline-none"
-      style={{ top: LIFT_BASE_Y - height, width, visibility: measured ? "visible" : "hidden" }}
+      className="absolute focus:outline-none"
+      style={{
+        top: LIFT_BASE_Y - height,
+        left: (sheetWidth - width) / 2,
+        width,
+        visibility: settled ? "visible" : "hidden",
+      }}
     >
       <FolderShape width={width} height={Math.max(height, TAB_H + 1)} tab={tab} />
       {/* Na aba só o nome: o carimbo de revisar aparece uma vez, ao lado do título. */}

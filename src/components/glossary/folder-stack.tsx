@@ -85,36 +85,51 @@ function buildLayers(terms: Term[]): Layer[] {
  * pasta. Como as laterais da pasta são verticais e a parede é diagonal, a folga
  * cresce até a pasta seguinte e as laterais formam uma escadinha.
  *
- * O passo (`widthStep`, par, para os cantos caírem em pixel inteiro) é o maior
- * em que todas as abas daquela gaveta cabem inteiras.
+ * Passo de alargamento (`widthStep`): sai do número de pastas e da largura
+ * disponível. A última pasta tem sempre a largura máxima entre as paredes
+ * (`containerWidth − 2·base`); daí para trás, cada pasta perde um passo. O espaço
+ * que a perspectiva pode consumir é uma fração (`budget`) dessa largura, dividido
+ * pelo número de pastas: com mais pastas, o passo diminui, e a primeira pasta
+ * nunca fica estreita demais. O passo é par, para os cantos caírem em pixel
+ * inteiro, e desce até todas as abas daquela gaveta caberem inteiras.
  */
 function drawerGeometry(containerWidth: number, layerCount: number, tabWidths: number[]) {
   const spacing = containerWidth < NARROW_WIDTH ? SPACING.narrow : SPACING.wide;
   const bodyTop = (index: number) => PILE_PT + TAB_H + index * STEP;
   const frontTop = bodyTop(layerCount);
   const base = spacing.frontOverhang + WALL_THICKNESS + spacing.folderGap;
-  const widthFor = (step: number, index: number) => containerWidth - 2 * base - (layerCount - index) * step;
+  const maxFolderWidth = containerWidth - 2 * base;
+  const widthFor = (step: number, index: number) => maxFolderWidth - (layerCount - index) * step;
   const fits = (step: number) =>
     tabWidths.every((tabWidth, index) => tabWidth + 2 * spacing.tabMargin <= widthFor(step, index));
 
+  const perspectiveRoom = maxFolderWidth * spacing.budget;
   let widthStep = Math.min(
     spacing.maxWidthStep,
-    Math.max(2, 2 * Math.floor((containerWidth * spacing.budget) / Math.max(1, layerCount) / 2)),
+    Math.max(2, 2 * Math.floor(perspectiveRoom / Math.max(1, layerCount) / 2)),
   );
   while (widthStep > 0 && !fits(widthStep)) widthStep -= 2;
   const spread = widthStep / 2 / STEP;
+  const wallsTop = bodyTop(0) - BACK_WALL_RISE;
   const outerAt = (y: number) => spacing.frontOverhang + (frontTop - y) * spread;
+  const innerAt = (y: number) => outerAt(y) + WALL_THICKNESS;
 
   return {
     tabMargin: spacing.tabMargin,
     widthOf: (index: number) => widthFor(widthStep, index),
+    /**
+     * Largura máxima de uma pasta cuja borda de cima do corpo está na altura `y`
+     * (coordenadas da pilha), com a folga das paredes. Acima da parede do fundo,
+     * vale a largura de lá. Em `bodyTop(i)` é igual a `widthOf(i)`.
+     */
+    bodyWidthAt: (y: number) => containerWidth - 2 * (innerAt(Math.max(y, wallsTop)) + spacing.folderGap),
     frontTop,
     walls: {
-      top: bodyTop(0) - BACK_WALL_RISE,
+      top: wallsTop,
       /** As paredes descem até sob a borda dupla da frente. */
       bottom: frontTop + 8,
       outerAt,
-      innerAt: (y: number) => outerAt(y) + WALL_THICKNESS,
+      innerAt,
     },
   };
 }
@@ -252,8 +267,16 @@ export function FolderStack(props: FolderStackProps) {
                       term={term}
                       total={props.total}
                       progress={termProgress}
-                      width={width}
-                      tab={tab}
+                      sheetWidth={width}
+                      fitWidth={(height) => {
+                        // Borda de cima do corpo da pasta erguida, nas coordenadas da pilha.
+                        const bodyTop = PILE_PT + index * STEP + LIFT_BASE_Y - height + TAB_H;
+                        const inset = Math.ceil((width - geometry.bodyWidthAt(bodyTop)) / 2);
+                        return width - 2 * Math.max(0, inset);
+                      }}
+                      tabForWidth={(liftedWidth) =>
+                        tabFor(term.name, layer.termIndex, liftedWidth, {}, geometry.tabMargin)
+                      }
                       onHeightChange={setLiftedHeight}
                       onOpened={() => {
                         setLiftClosing(false);
