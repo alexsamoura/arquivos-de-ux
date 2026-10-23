@@ -344,12 +344,13 @@ export function FolderStack(props: FolderStackProps) {
                   label={range.label}
                   height={DRAWER_FRONT_H}
                   panelWidth={containerWidth}
+                  // A frente mostra só a etiqueta; o aviso aparece apenas quando a busca não acha nada.
                   footer={
-                    <span className="label block px-4 text-center text-tinta-suave" aria-live="polite">
-                      {props.matchCount === 0
-                        ? "Nenhum arquivo encontrado"
-                        : "Escolha um termo"}
-                    </span>
+                    props.matchCount === 0 ? (
+                      <span className="label block px-4 text-center text-tinta-suave" role="status">
+                        Nenhum arquivo encontrado
+                      </span>
+                    ) : undefined
                   }
                 />
               </button>
