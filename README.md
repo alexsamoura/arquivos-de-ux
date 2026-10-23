@@ -1,4 +1,4 @@
-# 📚 Arquivo de UX
+# 📚 Arquivos de UX
 
 Uma aplicação web interativa desenvolvida em **Next.js** e **TypeScript** para consulta, estudo e acompanhamento de termos fundamentais de Experiência do Usuário (UX).
 
