@@ -16,11 +16,12 @@ export function isCategory(value: string): value is Category {
 
 /**
  * Gaveta do arquivo: um trecho contínuo do alfabeto, calculado a partir dos
- * termos para que nenhuma gaveta passe de `MAX_FOLDERS_PER_STACK`.
+ * termos: letras vizinhas se juntam até `MAX_FOLDERS_PER_STACK` termos. Uma letra
+ * nunca é dividida, então uma letra maior que isso fica numa gaveta só dela.
  */
 export interface Drawer {
   id: string;
-  /** Etiqueta da gaveta: "A–C", "M", ou "Pa–Pe" quando uma letra ocupa mais de uma gaveta. */
+  /** Etiqueta da gaveta: "A–C" ou, com uma letra só, "M". */
   label: string;
   /** Primeira e última letra da gaveta, em minúscula e sem acento. */
   from: string;
@@ -29,7 +30,7 @@ export interface Drawer {
 
 export type DrawerId = Drawer["id"];
 
-/** Máximo de pastas exibidas numa pilha. */
+/** Quantos termos, no máximo, letras vizinhas juntam numa gaveta. */
 export const MAX_FOLDERS_PER_STACK = 15;
 
 export interface Term {

@@ -52,8 +52,6 @@ interface FolderStackProps {
   openId: string | null;
   onOpen: (termId: string | null) => void;
   onUpdateProgress: (termId: string, patch: Partial<TermProgress>) => void;
-  /** Pastas que bateram com a busca mas passaram do limite da pilha. */
-  overflow: number;
 }
 
 type Layer =
@@ -344,16 +342,14 @@ export function FolderStack(props: FolderStackProps) {
               >
                 <DrawerFace
                   label={range.label}
-                  count={terms.length + props.overflow}
+                  count={terms.length}
                   height={DRAWER_FRONT_H}
                   panelWidth={containerWidth}
                   footer={
                     <span className="label block px-4 text-center text-tinta-suave" aria-live="polite">
                       {props.matchCount === 0
                         ? "Nenhum arquivo encontrado"
-                        : props.overflow > 0
-                          ? `+${props.overflow} fora da pilha · refine a busca`
-                          : "Escolha um termo"}
+                        : "Escolha um termo"}
                     </span>
                   }
                 />

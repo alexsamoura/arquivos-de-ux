@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { buildDrawers, groupByDrawer } from "@/lib/glossary/drawers";
 import { filterTerms, type GlossaryFilters } from "@/lib/glossary/filters";
-import { MAX_FOLDERS_PER_STACK, type DrawerId } from "@/lib/glossary/types";
+import type { DrawerId } from "@/lib/glossary/types";
 import { useGlossary } from "@/lib/glossary/use-glossary";
 import { ArchivePath } from "./archive-path";
 import { FolderStack } from "./folder-stack";
@@ -34,9 +34,7 @@ export function GlossaryApp() {
       : (drawers.find((d) => rangeCounts[d.id] > 0)?.id ?? selectedRange);
 
   const rangeTerms = activeRange ? groups[activeRange] : [];
-  const stackTerms = rangeTerms.slice(0, MAX_FOLDERS_PER_STACK);
-  const overflow = rangeTerms.length - stackTerms.length;
-  const openTerm = stackTerms.find((t) => t.id === openId) ?? null;
+  const openTerm = rangeTerms.find((t) => t.id === openId) ?? null;
 
   const seenCount = allTerms.filter((t) => progress[t.id]?.seen).length;
   const reviewCount = allTerms.filter((t) => progress[t.id]?.review).length;
@@ -92,14 +90,13 @@ export function GlossaryApp() {
             activeRange={activeRange}
             rangeCounts={rangeCounts}
             onSelectRange={selectRange}
-            terms={stackTerms}
+            terms={rangeTerms}
             total={allTerms.length}
             matchCount={matches.length}
             progress={progress}
             openId={openTerm?.id ?? null}
             onOpen={setOpenId}
             onUpdateProgress={updateProgress}
-            overflow={overflow}
           />
         </section>
       )}
