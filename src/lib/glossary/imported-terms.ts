@@ -1,9 +1,10 @@
 import rawNewTerms from "../../../termos-novos.json";
+import { slugify } from "./term-id";
 import { isCategory, type Category } from "./types";
 
 /**
  * Termos novos de `termos-novos.json` (instruções em `termos-leia-me.md`).
- * O campo `fonte` é só controle interno e não entra no app.
+ * O campo `fonte` é só controle interno: vai para o banco, mas não aparece no app.
  */
 interface NewTermEntry {
   termo: string;
@@ -23,6 +24,7 @@ export interface ImportedTerm {
   definition: string;
   example: string;
   tip: string;
+  source: string;
 }
 
 /**
@@ -61,15 +63,6 @@ const SYNONYMS_FOR_APP_TERMS: Record<string, string[]> = {
   "design-sprint": ["Sprint brief"],
 };
 
-function slugify(text: string) {
-  return text
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-}
-
 /**
  * Separa os termos novos dos que já existem no app e junta os sinônimos de cada
  * termo do app. Falha cedo se o arquivo trouxer uma categoria desconhecida ou um
@@ -104,6 +97,7 @@ export function importNewTerms(appTermIds: Set<string>) {
       definition: entry.definicao,
       example: entry.exemplo,
       tip: entry.dica,
+      source: entry.fonte,
     });
   }
 

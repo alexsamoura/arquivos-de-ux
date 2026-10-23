@@ -13,7 +13,7 @@ import { GlossaryHeader } from "./glossary-header";
 const INITIAL_FILTERS: GlossaryFilters = { query: "", category: null, onlyReview: false };
 
 export function GlossaryApp() {
-  const { terms, progress, updateProgress, loading } = useGlossary();
+  const { terms, progress, updateProgress, status, error, retry } = useGlossary();
   const [filters, setFilters] = useState(INITIAL_FILTERS);
   // null = arquivo fechado, mostrando o gaveteiro.
   const [selectedRange, setSelectedRange] = useState<DrawerId | null>(null);
@@ -62,6 +62,7 @@ export function GlossaryApp() {
     // Três grupos (cabeçalho, controles, conteúdo): 48px entre eles, 8–12px dentro.
     <main className="mx-auto flex w-full max-w-[760px] flex-col gap-12 px-4 pt-8 pb-16 sm:px-8 sm:pt-12">
       <GlossaryHeader
+        ready={status === "ready"}
         seen={seenCount}
         total={allTerms.length}
         review={reviewCount}
@@ -70,8 +71,19 @@ export function GlossaryApp() {
       />
       <GlossaryFiltersBar filters={filters} onChange={changeFilters} />
 
-      {loading ? (
-        <p className="label py-24 text-center text-tinta-suave">Abrindo arquivo…</p>
+      {status === "loading" ? (
+        <p role="status" className="label py-24 text-center text-tinta-suave">
+          Abrindo arquivo…
+        </p>
+      ) : status === "error" ? (
+        <ArchiveMessage
+          title="Não foi possível abrir o arquivo"
+          detail={error ?? "Erro desconhecido ao buscar os termos."}
+          action={{ label: "Tentar de novo", onClick: retry }}
+          role="alert"
+        />
+      ) : allTerms.length === 0 ? (
+        <ArchiveMessage title="O arquivo está vazio" detail="Ainda não há termos cadastrados." role="status" />
       ) : (
         <section
           ref={stackTopRef}
@@ -108,5 +120,34 @@ export function GlossaryApp() {
         </section>
       )}
     </main>
+  );
+}
+
+/** Aviso no lugar do gaveteiro: título em metadado, detalhe e, se houver, uma ação. */
+function ArchiveMessage({
+  title,
+  detail,
+  action,
+  role,
+}: {
+  title: string;
+  detail: string;
+  action?: { label: string; onClick: () => void };
+  role: "alert" | "status";
+}) {
+  return (
+    <div role={role} className="flex flex-col items-center gap-3 py-24 text-center">
+      <p className="label">{title}</p>
+      <p className="text-[15px] leading-snug text-tinta-suave">{detail}</p>
+      {action ? (
+        <button
+          type="button"
+          onClick={action.onClick}
+          className="cursor-pointer text-[15px] underline underline-offset-4 hover:text-tinta-suave"
+        >
+          {action.label}
+        </button>
+      ) : null}
+    </div>
   );
 }

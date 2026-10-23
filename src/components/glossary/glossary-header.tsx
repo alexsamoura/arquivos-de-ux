@@ -1,4 +1,6 @@
 interface GlossaryHeaderProps {
+  /** Os termos já chegaram: antes disso, contagens não aparecem (seriam zero). */
+  ready: boolean;
   seen: number;
   total: number;
   review: number;
@@ -41,7 +43,7 @@ function InkFilter() {
   );
 }
 
-export function GlossaryHeader({ seen, total, review, reviewActive, onToggleReview }: GlossaryHeaderProps) {
+export function GlossaryHeader({ ready, seen, total, review, reviewActive, onToggleReview }: GlossaryHeaderProps) {
   return (
     <header className="flex flex-col gap-3 border-b border-tinta pb-5 sm:flex-row sm:items-end sm:justify-between">
       <InkFilter />
@@ -49,10 +51,12 @@ export function GlossaryHeader({ seen, total, review, reviewActive, onToggleRevi
         <h1 className="flex items-center gap-3 text-[30px] leading-none font-medium">
           Arquivos de <span className="logo-stamp text-tinta">UX</span>
         </h1>
-        <p className="text-[15px] leading-snug text-tinta-suave">{total} termos de UX para consultar e revisar</p>
+        <p className="text-[15px] leading-snug text-tinta-suave">
+          {ready ? `${total} termos de UX para consultar e revisar` : "Termos de UX para consultar e revisar"}
+        </p>
       </div>
       {/* Contador (metadado). "Revisar N" liga e desliga o filtro de revisar. */}
-      <p className="label flex items-center gap-2 whitespace-nowrap">
+      <p className={`label flex items-center gap-2 whitespace-nowrap ${ready ? "" : "invisible"}`}>
         <span aria-label={`${seen} de ${total} termos vistos`}>
           Vistos {seen} / {total}
         </span>
