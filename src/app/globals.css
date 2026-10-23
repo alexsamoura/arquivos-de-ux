@@ -22,6 +22,7 @@
   --color-carimbo: var(--carimbo);
   --font-mono: var(--font-plex-mono), ui-monospace, monospace;
   --font-serif: var(--font-plex-serif), Georgia, serif;
+  --font-carimbo: var(--font-archivo-black), "Arial Black", sans-serif;
 }
 
 /* Regras próprias ficam nas camadas do Tailwind para que os utilitários
@@ -57,6 +58,24 @@
     line-height: 1;
     letter-spacing: 0.08em;
     text-transform: uppercase;
+  }
+
+  /*
+   * "UX" do logo como carimbo: moldura arredondada com o traço da mesma espessura
+   * da letra, tinta preta, levemente torto. A textura de tinta vem do filtro SVG
+   * #tinta-carimbo, aplicado só aqui.
+   */
+  .logo-stamp {
+    display: inline-block;
+    padding: 0.08em 0.28em 0.04em;
+    border: 0.12em solid currentColor;
+    border-radius: 0.2em;
+    font-family: var(--font-carimbo);
+    line-height: 1;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    transform: rotate(-3deg);
+    filter: url(#tinta-carimbo);
   }
 
   /* Carimbo de "revisar": tinta vermelha, levemente torto, sem moldura. */

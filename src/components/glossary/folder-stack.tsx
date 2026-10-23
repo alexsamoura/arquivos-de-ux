@@ -1,33 +1,49 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { pad } from "@/lib/glossary/filters";
-import { EMPTY_PROGRESS, RANGES, type ProgressMap, type RangeId, type Term, type TermProgress } from "@/lib/glossary/types";
+import { normalize, pad } from "@/lib/glossary/filters";
+import { EMPTY_PROGRESS, type Drawer, type DrawerId, type ProgressMap, type Term, type TermProgress } from "@/lib/glossary/types";
 import { DrawerCabinet, DrawerFace } from "./drawer-cabinet";
 import { FolderShape, STEP, TAB_H, TabLabel, tabWidthFor, type TabGeometry } from "./folder-shape";
-import { LiftedFolder, prefersReducedMotion } from "./lifted-folder";
+import { focusForKeyboard } from "./input-modality";
+import { LIFT_BASE_Y, LIFT_EASE, LiftedFolder, prefersReducedMotion } from "./lifted-folder";
 import { useElementSize } from "./use-element-size";
 
 /** Altura de layout de uma pasta fechada: aba + faixa visível + folga escondida. */
 const SHEET_H = TAB_H + STEP + 8;
 /**
- * Altura desenhada do corpo. É maior que a de layout para que a pasta continue
- * visível atrás das da frente; a pasta seguinte, mais larga, a cobre.
+ * Altura desenhada da pasta, da aba à base. A base passa um pouco da faixa
+ * visível e fica sob a pasta seguinte, que é desenhada por cima.
  */
-const SHEET_BODY_H = 1600;
-const MAX_WIDTH_STEP = 12;
-/** Fração máxima da largura da pasta que uma aba pode ocupar. */
-const MAX_TAB_FRACTION = 0.86;
+const SHEET_BODY_H = TAB_H + STEP + 12;
+/** Respiro no topo da pilha, para o contorno de foco da primeira aba. */
+const PILE_PT = 4;
+const DRAWER_FRONT_H = 120;
+/** Distância entre as duas linhas de cada parede lateral. */
+const WALL_THICKNESS = 6;
+/** Quanto a parede do fundo fica acima da borda de cima da primeira pasta. */
+const BACK_WALL_RISE = 10;
+/**
+ * Medidas que variam com a largura: no desktop, as pedidas (folga de 8px e frente
+ * 12px mais larga que a caixa); em telas estreitas, menores, para os nomes longos
+ * com carimbo caberem inteiros nas abas.
+ */
+const SPACING = {
+  wide: { folderGap: 8, frontOverhang: 12, tabMargin: 10, maxWidthStep: 12, budget: 0.24 },
+  narrow: { folderGap: 6, frontOverhang: 6, tabMargin: 4, maxWidthStep: 2, budget: 0.06 },
+};
+const NARROW_WIDTH = 480;
 const TERM_TAB_POSITIONS = ["left", "center", "right"] as const;
 /** Intervalo entre a entrada de uma pasta e a próxima ao abrir a gaveta. */
 const ENTER_STAGGER_MS = 30;
 const DRAWER_SLIDE_MS = 460;
 
 interface FolderStackProps {
+  drawers: Drawer[];
   /** Gaveta aberta; `null` mostra a capa com o gaveteiro. */
-  activeRange: RangeId | null;
-  rangeCounts: Record<RangeId, number>;
-  onSelectRange: (range: RangeId | null) => void;
+  activeRange: DrawerId | null;
+  rangeCounts: Record<DrawerId, number>;
+  onSelectRange: (range: DrawerId | null) => void;
   terms: Term[];
   total: number;
   /** Termos que batem com os filtros, somando todas as faixas. */
@@ -40,30 +56,121 @@ interface FolderStackProps {
   overflow: number;
 }
 
+type Layer =
+  | { kind: "divider"; letter: string; key: string }
+  | { kind: "term"; term: Term; termIndex: number; key: string };
+
+/** Pastas na ordem da pilha, com uma divisória antes do primeiro termo de cada letra. */
+function buildLayers(terms: Term[]): Layer[] {
+  const layers: Layer[] = [];
+  let previous = "";
+  terms.forEach((term, termIndex) => {
+    const letter = normalize(term.name).charAt(0).toUpperCase();
+    if (letter !== previous) {
+      layers.push({ kind: "divider", letter, key: `letra-${letter}` });
+      previous = letter;
+    }
+    layers.push({ kind: "term", term, termIndex, key: term.id });
+  });
+  return layers;
+}
+
+/**
+ * Geometria única da gaveta, lida por pastas, paredes e frente.
+ *
+ * A caixa se abre para baixo: a parede externa esquerda fica em
+ * `frontOverhang` na base (onde a frente começa) e sobe para dentro meio passo
+ * a cada `STEP`. A interna fica `WALL_THICKNESS` para dentro dela. Cada pasta
+ * fica `folderGap` para dentro da parede interna, medida na borda de cima da
+ * pasta. Como as laterais da pasta são verticais e a parede é diagonal, a folga
+ * cresce até a pasta seguinte e as laterais formam uma escadinha.
+ *
+ * O passo (`widthStep`, par, para os cantos caírem em pixel inteiro) é o maior
+ * em que todas as abas daquela gaveta cabem inteiras.
+ */
+function drawerGeometry(containerWidth: number, layerCount: number, tabWidths: number[]) {
+  const spacing = containerWidth < NARROW_WIDTH ? SPACING.narrow : SPACING.wide;
+  const bodyTop = (index: number) => PILE_PT + TAB_H + index * STEP;
+  const frontTop = bodyTop(layerCount);
+  const base = spacing.frontOverhang + WALL_THICKNESS + spacing.folderGap;
+  const widthFor = (step: number, index: number) => containerWidth - 2 * base - (layerCount - index) * step;
+  const fits = (step: number) =>
+    tabWidths.every((tabWidth, index) => tabWidth + 2 * spacing.tabMargin <= widthFor(step, index));
+
+  let widthStep = Math.min(
+    spacing.maxWidthStep,
+    Math.max(2, 2 * Math.floor((containerWidth * spacing.budget) / Math.max(1, layerCount) / 2)),
+  );
+  while (widthStep > 0 && !fits(widthStep)) widthStep -= 2;
+  const spread = widthStep / 2 / STEP;
+  const outerAt = (y: number) => spacing.frontOverhang + (frontTop - y) * spread;
+
+  return {
+    tabMargin: spacing.tabMargin,
+    widthOf: (index: number) => widthFor(widthStep, index),
+    frontTop,
+    walls: {
+      top: bodyTop(0) - BACK_WALL_RISE,
+      /** As paredes descem até sob a borda dupla da frente. */
+      bottom: frontTop + 8,
+      outerAt,
+      innerAt: (y: number) => outerAt(y) + WALL_THICKNESS,
+    },
+  };
+}
+
+type DrawerGeometry = ReturnType<typeof drawerGeometry>;
+
 export function FolderStack(props: FolderStackProps) {
   const { activeRange, terms, openId, progress } = props;
   const [ref, { width: containerWidth }] = useElementSize<HTMLDivElement>();
   const [liftedHeight, setLiftedHeight] = useState(0);
-  // Posição na tela da gaveta clicada no gaveteiro, de onde a gaveta aberta desliza.
+  // A pasta erguida começou a voltar: o espaço aberto acima da pilha recolhe junto.
+  const [liftClosing, setLiftClosing] = useState(false);
+  // Topo, na tela, da gaveta clicada no gaveteiro: de onde a gaveta aberta desliza.
   const [drawerOrigin, setDrawerOrigin] = useState<number | null>(null);
-  // Pasta que recebe o foco de volta quando a ficha fecha. O foco só é aceito
-  // depois que a pilha deixa de ser inert, por isso fica para o efeito.
+  // Gaveta que acabou de fechar, para devolver o foco a ela no gaveteiro.
+  const [closedRange, setClosedRange] = useState<DrawerId | null>(null);
+  // Pasta que recebe o foco de volta quando a ficha fecha.
   const returnFocusRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (openId || !returnFocusRef.current) return;
-    document.getElementById(folderButtonId(returnFocusRef.current))?.focus({ preventScroll: true });
+    focusForKeyboard(document.getElementById(folderButtonId(returnFocusRef.current)));
     returnFocusRef.current = null;
   }, [openId]);
 
-  const range = RANGES.find((r) => r.id === activeRange) ?? null;
+  const range = props.drawers.find((d) => d.id === activeRange) ?? null;
+
+  const closeDrawer = () => {
+    if (!range) return;
+    setClosedRange(range.id);
+    props.onSelectRange(null);
+  };
+
+  // Esc fecha a gaveta quando não há ficha aberta (com ficha, o Esc fecha a ficha).
+  const escapeRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    escapeRef.current = () => {
+      if (range && !openId) closeDrawer();
+    };
+  });
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") escapeRef.current();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   if (!range) {
     // Mesmo contêiner medido nas duas vistas, para a largura já estar pronta ao abrir a gaveta.
     return (
       <div ref={ref}>
         <DrawerCabinet
+          drawers={props.drawers}
           rangeCounts={props.rangeCounts}
+          focusRange={closedRange}
           hasResults={props.matchCount > 0}
           onOpen={(rangeId, originTop) => {
             setDrawerOrigin(originTop);
@@ -74,135 +181,244 @@ export function FolderStack(props: FolderStackProps) {
     );
   }
 
-  // Pastas + a gaveta na frente. Falsa perspectiva: cada camada à frente é um
-  // pouco mais larga; em telas estreitas o passo diminui.
-  const layerCount = terms.length + 1;
-  const widthStep =
-    layerCount > 1 ? Math.min(MAX_WIDTH_STEP, Math.floor((containerWidth * 0.26) / (layerCount - 1))) : 0;
-  const widthOf = (index: number) => containerWidth - (layerCount - 1 - index) * widthStep;
+  const layers = buildLayers(terms);
+  const marksOf = (term: Term) => (openId === term.id ? {} : (progress[term.id] ?? EMPTY_PROGRESS));
+  // Largura que cada aba precisa, sem limite: a geometria escolhe o passo em que todas cabem.
+  const tabWidths = layers.map((layer) =>
+    layer.kind === "term" ? tabWidthFor(layer.term.name, Infinity, marksOf(layer.term)) : tabWidthFor("M", Infinity),
+  );
+  const geometry = drawerGeometry(containerWidth, layers.length, tabWidths);
+  const { widthOf } = geometry;
 
-  const tabFor = (term: Term, index: number, width: number, marks: { seen: boolean; review: boolean }) => {
-    const tabW = tabWidthFor(term.name, width * MAX_TAB_FRACTION, marks);
-    const position = TERM_TAB_POSITIONS[index % TERM_TAB_POSITIONS.length];
-    return placeTab(width, tabW, position === "left" ? 18 : position === "center" ? (width - tabW) / 2 : width);
-  };
-
-  const openIndex = openId ? terms.findIndex((t) => t.id === openId) : -1;
-  const openTerm = openIndex >= 0 ? terms[openIndex] : null;
+  const openLayerIndex = openId ? layers.findIndex((l) => l.kind === "term" && l.term.id === openId) : -1;
+  // A ficha sobe acima do lugar dela; se não couber, a pilha desce para abrir espaço.
+  const liftSpace =
+    openLayerIndex >= 0 && !liftClosing
+      ? Math.max(0, liftedHeight - LIFT_BASE_Y - openLayerIndex * STEP)
+      : 0;
 
   return (
-    <div
-      ref={ref}
-      className="relative"
-      // A pasta erguida pode ser mais alta que a pilha: reserva o espaço dela.
-      style={{ minHeight: openTerm ? liftedHeight + 8 : undefined }}
-    >
-      {/* overflow: clip (e não hidden) corta os corpos altos das pastas sem criar
+    <div ref={ref}>
+      {/* overflow: clip (e não hidden) corta o que passa da frente da gaveta sem criar
           uma área rolável, que o foco ou o scrollIntoView poderiam deslocar. */}
-      <div className="overflow-clip pt-1" inert={openTerm !== null}>
-        {containerWidth > 0 &&
-          terms.map((term, index) => {
-            const width = widthOf(index);
-            const termProgress = progress[term.id] ?? EMPTY_PROGRESS;
-            const tab = tabFor(term, index, width, termProgress);
-            const open = () => props.onOpen(term.id);
-            const style: CSSProperties = {
-              width,
-              zIndex: index + 1,
-              marginTop: index === 0 ? 0 : STEP - SHEET_H,
-              animationDelay: `${index * ENTER_STAGGER_MS}ms`,
-              // A pasta aberta sai da pilha e deixa o vão no lugar dela.
-              visibility: openId === term.id ? "hidden" : undefined,
-            };
+      <div
+        className="overflow-clip motion-safe:transition-[padding] motion-safe:duration-[480ms]"
+        style={{ paddingTop: liftSpace, transitionTimingFunction: LIFT_EASE }}
+      >
+        <div className="relative" style={{ paddingTop: PILE_PT }}>
+          {containerWidth > 0 && layers.length > 0 ? (
+            <DrawerWalls width={containerWidth} walls={geometry.walls} />
+          ) : null}
 
-            return (
-              <Sheet key={term.id} id={slotId(term.id)} style={style} width={width} tab={tab}>
-                <TabLabel
-                  tab={tab}
-                  seen={termProgress.seen}
-                  review={termProgress.review}
-                  className="group-hover:underline group-hover:underline-offset-4"
-                >
-                  {term.name}
-                </TabLabel>
-                {/* Área clicável = aba + faixa visível do corpo, sem invadir a pasta de trás. */}
-                <button
-                  id={folderButtonId(term.id)}
-                  type="button"
-                  onClick={open}
-                  aria-label={`${term.name}${termProgress.seen ? ", já visto" : ""}${termProgress.review ? ", marcado para revisar" : ""}`}
-                  className="absolute left-0 cursor-pointer"
-                  style={{ top: TAB_H, width, height: STEP }}
-                />
-                <button
-                  type="button"
-                  tabIndex={-1}
-                  aria-hidden
-                  onClick={open}
-                  className="absolute top-0 cursor-pointer"
-                  style={{ left: tab.x, width: tab.width, height: TAB_H }}
-                />
-              </Sheet>
-            );
-          })}
+          {containerWidth > 0 &&
+            layers.map((layer, index) => {
+              const width = widthOf(index);
+              const style: CSSProperties = {
+                width,
+                zIndex: index + 1,
+                marginTop: index === 0 ? 0 : STEP - SHEET_H,
+                animationDelay: `${index * ENTER_STAGGER_MS}ms`,
+              };
 
-        {containerWidth > 0 ? (
-          <OpenDrawer
-            key={range.id}
-            origin={drawerOrigin}
-            onSlid={() => setDrawerOrigin(null)}
-            style={{
-              position: "relative",
-              zIndex: layerCount,
-              // Alinha a borda de cima da gaveta onde ficaria o corpo de uma pasta.
-              marginTop: terms.length === 0 ? 0 : STEP - SHEET_H + TAB_H,
-            }}
-          >
-            <DrawerFace
-              label={range.label}
-              count={terms.length + props.overflow}
-              height={124}
-              footer={
-                <p className="label px-4 text-center text-tinta-suave" aria-live="polite">
-                  {props.matchCount === 0
-                    ? "Nenhum arquivo encontrado"
-                    : props.overflow > 0
-                      ? `+${pad(props.overflow)} fora da pilha · refine a busca`
-                      : "Escolha um termo e tente lembrar"}
-                </p>
+              if (layer.kind === "divider") {
+                return (
+                  <DividerSheet
+                    key={layer.key}
+                    style={style}
+                    width={width}
+                    letter={layer.letter}
+                    range={range}
+                  />
+                );
               }
-            />
-          </OpenDrawer>
-        ) : null}
-      </div>
 
-      {openTerm && containerWidth > 0 ? (
-        <LiftedFolder
-          key={openTerm.id}
-          term={openTerm}
-          total={props.total}
-          progress={progress[openTerm.id] ?? EMPTY_PROGRESS}
-          width={widthOf(openIndex)}
-          left={(containerWidth - widthOf(openIndex)) / 2}
-          tab={tabFor(openTerm, openIndex, widthOf(openIndex), { seen: false, review: false })}
-          stackZ={openIndex + 1}
-          slotId={slotId(openTerm.id)}
-          onHeightChange={setLiftedHeight}
-          onReveal={() => props.onUpdateProgress(openTerm.id, { seen: true })}
-          onMark={(review) => props.onUpdateProgress(openTerm.id, { seen: true, review })}
-          onClosed={() => {
-            returnFocusRef.current = openTerm.id;
-            props.onOpen(null);
-          }}
-        />
-      ) : null}
+              const { term } = layer;
+              const termProgress = progress[term.id] ?? EMPTY_PROGRESS;
+              const isOpen = openId === term.id;
+              const tab = tabFor(term.name, layer.termIndex, width, marksOf(term), geometry.tabMargin);
+              const open = () => props.onOpen(term.id);
+
+              return (
+                <Sheet
+                  key={layer.key}
+                  id={slotId(term.id)}
+                  style={style}
+                  width={width}
+                  tab={tab}
+                  drawn={!isOpen}
+                >
+                  {isOpen ? (
+                    <LiftedFolder
+                      term={term}
+                      total={props.total}
+                      progress={termProgress}
+                      width={width}
+                      tab={tab}
+                      onHeightChange={setLiftedHeight}
+                      onOpened={() => {
+                        setLiftClosing(false);
+                        props.onUpdateProgress(term.id, { seen: true });
+                      }}
+                      onClosingStart={() => setLiftClosing(true)}
+                      onMark={(review) => props.onUpdateProgress(term.id, { seen: true, review })}
+                      onClosed={() => {
+                        returnFocusRef.current = term.id;
+                        setLiftClosing(false);
+                        props.onOpen(null);
+                      }}
+                    />
+                  ) : (
+                    <>
+                      <TabLabel
+                        tab={tab}
+                        seen={termProgress.seen}
+                        review={termProgress.review}
+                        className="group-hover:underline group-hover:underline-offset-4"
+                      >
+                        {term.name}
+                      </TabLabel>
+                      {/* Área clicável = aba + faixa visível do corpo, sem invadir a pasta de trás. */}
+                      <button
+                        id={folderButtonId(term.id)}
+                        type="button"
+                        onClick={open}
+                        aria-label={`${term.name}${termProgress.seen ? ", já visto" : ""}${termProgress.review ? ", marcado para revisar" : ""}`}
+                        className="absolute left-0 cursor-pointer"
+                        style={{ top: TAB_H, width, height: STEP }}
+                      />
+                      <button
+                        type="button"
+                        tabIndex={-1}
+                        aria-hidden
+                        onClick={open}
+                        className="absolute top-0 cursor-pointer"
+                        style={{ left: tab.x, width: tab.width, height: TAB_H }}
+                      />
+                    </>
+                  )}
+                </Sheet>
+              );
+            })}
+
+          {containerWidth > 0 ? (
+            <OpenDrawer
+              key={range.id}
+              origin={drawerOrigin}
+              onSlid={() => setDrawerOrigin(null)}
+              style={{
+                position: "relative",
+                zIndex: layers.length + 1,
+                // A borda de cima da frente fica na base da última pasta.
+                marginTop: layers.length === 0 ? 0 : STEP - SHEET_H + TAB_H,
+              }}
+            >
+              {/* Só a frente fecha a gaveta: clicar nas pastas nunca fecha. */}
+              <button
+                type="button"
+                onClick={closeDrawer}
+                aria-label={`Fechar gaveta ${range.label}`}
+                className="block w-full cursor-pointer motion-safe:transition-transform motion-safe:duration-150 hover:translate-y-[3px] focus-visible:translate-y-[3px]"
+              >
+                <DrawerFace
+                  label={range.label}
+                  count={terms.length + props.overflow}
+                  height={DRAWER_FRONT_H}
+                  panelWidth={containerWidth}
+                  footer={
+                    <span className="label block px-4 text-center text-tinta-suave" aria-live="polite">
+                      {props.matchCount === 0
+                        ? "Nenhum arquivo encontrado"
+                        : props.overflow > 0
+                          ? `+${pad(props.overflow)} fora da pilha · refine a busca`
+                          : "Escolha um termo"}
+                    </span>
+                  }
+                />
+              </button>
+            </OpenDrawer>
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 }
 
+function tabFor(
+  name: string,
+  termIndex: number,
+  width: number,
+  marks: { seen?: boolean; review?: boolean },
+  margin: number,
+) {
+  const tabW = tabWidthFor(name, width - 2 * margin, marks);
+  const position = TERM_TAB_POSITIONS[termIndex % TERM_TAB_POSITIONS.length];
+  return placeTab(width, tabW, position === "left" ? 18 : position === "center" ? (width - tabW) / 2 : width, margin);
+}
+
 /**
- * Gaveta aberta na frente da pilha. Ao montar, desliza da posição que tinha no
- * gaveteiro até aqui (FLIP), enquanto as pastas sobem de dentro dela.
+ * Paredes da gaveta, atrás das pastas: cada lateral são duas linhas paralelas
+ * (externa e interna, a `WALL_THICKNESS`), fechadas em cima por um traço curto,
+ * e a parede do fundo é uma linha horizontal entre elas. As linhas descem até
+ * sob a frente, que é desenhada por cima.
+ */
+function DrawerWalls({ width, walls }: { width: number; walls: DrawerGeometry["walls"] }) {
+  const { top, bottom, outerAt, innerAt } = walls;
+  const y0 = top + 0.5;
+  const left = (x: number) => x + 0.5;
+  const right = (x: number) => width - x - 0.5;
+  const side = (at: (x: number) => number) =>
+    `M${at(outerAt(bottom))} ${bottom} L${at(outerAt(top))} ${y0} L${at(innerAt(top))} ${y0} L${at(innerAt(bottom))} ${bottom}`;
+
+  return (
+    <svg
+      aria-hidden
+      width={width}
+      height={bottom}
+      viewBox={`0 0 ${width} ${bottom}`}
+      className="pointer-events-none absolute top-0 left-0 block"
+      style={{ zIndex: 0 }}
+    >
+      <path
+        d={`${side(left)} ${side(right)} M${left(innerAt(top))} ${y0} H${right(innerAt(top))}`}
+        fill="none"
+        stroke="var(--tinta)"
+        strokeWidth={1}
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** Divisória com aba escura e a letra, antes do primeiro termo daquela letra. */
+function DividerSheet({
+  style,
+  width,
+  letter,
+  range,
+}: {
+  style: CSSProperties;
+  width: number;
+  letter: string;
+  range: Drawer;
+}) {
+  // A posição da aba acompanha a letra dentro da faixa, como em divisórias de arquivo.
+  const span = Math.max(1, range.to.charCodeAt(0) - range.from.charCodeAt(0));
+  const fraction = (letter.toLowerCase().charCodeAt(0) - range.from.charCodeAt(0)) / span;
+  const tabW = tabWidthFor("M", width);
+  const tab = placeTab(width, tabW, 18 + fraction * (width - tabW - 36));
+
+  return (
+    <Sheet style={style} width={width} tab={tab} filledTab>
+      <TabLabel tab={tab} className="text-papel">
+        {letter}
+      </TabLabel>
+    </Sheet>
+  );
+}
+
+/**
+ * Frente da gaveta aberta. Ao montar, desliza da posição que tinha no gaveteiro
+ * até aqui (FLIP), enquanto as pastas sobem de dentro da gaveta.
  */
 function OpenDrawer({
   origin: initialOrigin,
@@ -229,7 +445,7 @@ function OpenDrawer({
     const offset = origin - drawer.getBoundingClientRect().top;
     const animation = drawer.animate([{ transform: `translateY(${offset}px)` }, { transform: "none" }], {
       duration: DRAWER_SLIDE_MS,
-      easing: "cubic-bezier(0.2, 0.7, 0.2, 1)",
+      easing: LIFT_EASE,
     });
     return () => animation.cancel();
     // Só na montagem: cada gaveta aberta monta de novo (key = faixa).
@@ -252,8 +468,7 @@ function slotId(termId: string) {
 }
 
 /** Mantém a aba dentro da pasta, com respiro mínimo nas bordas. */
-function placeTab(width: number, tabWidth: number, x: number): TabGeometry {
-  const margin = 18;
+function placeTab(width: number, tabWidth: number, x: number, margin = SPACING.wide.tabMargin): TabGeometry {
   return { x: Math.round(Math.max(margin, Math.min(x, width - tabWidth - margin))), width: tabWidth };
 }
 
@@ -262,13 +477,19 @@ interface SheetProps {
   style: CSSProperties;
   width: number;
   tab: TabGeometry | null;
+  filledTab?: boolean;
+  /** Falso quando a pasta está erguida e ela mesma se desenha. */
+  drawn?: boolean;
   children: ReactNode;
 }
 
-function Sheet({ id, style, width, tab, children }: SheetProps) {
+/** Pasta fechada: forma completa (aba, laterais curtas, base), por cima da base da anterior. */
+function Sheet({ id, style, width, tab, filledTab, drawn = true, children }: SheetProps) {
   return (
     <div id={id} className="sheet-enter group relative mx-auto" style={{ ...style, height: SHEET_H }}>
-      <FolderShape width={width} height={SHEET_BODY_H} tab={tab} />
+      {drawn ? (
+        <FolderShape width={width} height={SHEET_BODY_H} tab={tab} filledTab={filledTab} />
+      ) : null}
       {children}
     </div>
   );

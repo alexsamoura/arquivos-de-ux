@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, IBM_Plex_Serif } from "next/font/google";
+import { Archivo_Black, IBM_Plex_Mono, IBM_Plex_Serif } from "next/font/google";
 import "./globals.css";
 
 const plexMono = IBM_Plex_Mono({
@@ -15,14 +15,24 @@ const plexSerif = IBM_Plex_Serif({
   weight: ["400"],
 });
 
+// Só para o carimbo "UX" do logo.
+const archivoBlack = Archivo_Black({
+  variable: "--font-archivo-black",
+  subsets: ["latin"],
+  weight: "400",
+});
+
 export const metadata: Metadata = {
-  title: "Glossário de UX",
+  title: "Arquivo de UX",
   description: "Arquivo pessoal de termos de Product Design para estudo por recuperação ativa.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="pt-BR" className={`${plexMono.variable} ${plexSerif.variable} h-full antialiased`}>
+    <html
+      lang="pt-BR"
+      className={`${plexMono.variable} ${plexSerif.variable} ${archivoBlack.variable} h-full antialiased`}
+    >
       <body className="min-h-full">{children}</body>
     </html>
   );

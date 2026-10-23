@@ -6,10 +6,47 @@ interface GlossaryHeaderProps {
   review: number;
 }
 
+/**
+ * Textura de tinta do carimbo "UX": bordas levemente irregulares
+ * (feTurbulence + feDisplacementMap de escala pequena) e falhas miúdas de tinta
+ * (ruído fino transformado em máscara de alfa). Sutil de propósito: a palavra
+ * tem que continuar nítida.
+ */
+function InkFilter() {
+  return (
+    <svg aria-hidden width="0" height="0" className="absolute">
+      <filter id="tinta-carimbo" x="-8%" y="-15%" width="116%" height="130%" colorInterpolationFilters="sRGB">
+        {/* Ondulação larga (≈12px) e deslocamento de ~±0.7px: borda irregular, não granulada. */}
+        <feTurbulence type="fractalNoise" baseFrequency="0.08" numOctaves="3" seed="4" result="ruido-borda" />
+        <feDisplacementMap
+          in="SourceGraphic"
+          in2="ruido-borda"
+          scale="1.5"
+          xChannelSelector="R"
+          yChannelSelector="G"
+          result="borda"
+        />
+        <feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="1" seed="11" result="ruido-falhas" />
+        {/* Alfa = 10 − 14·R: quase tudo opaco; só os picos do ruído viram falhas miúdas. */}
+        <feColorMatrix
+          in="ruido-falhas"
+          type="matrix"
+          values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -14 0 0 0 10"
+          result="mascara"
+        />
+        <feComposite in="borda" in2="mascara" operator="in" />
+      </filter>
+    </svg>
+  );
+}
+
 export function GlossaryHeader({ seen, total, review }: GlossaryHeaderProps) {
   return (
     <header className="flex flex-col gap-3 border-b border-tinta pb-4 sm:flex-row sm:items-end sm:justify-between">
-      <h1 className="text-[18px] leading-snug font-medium">Glossário de UX — Arquivo de Termos</h1>
+      <InkFilter />
+      <h1 className="flex items-center gap-3 text-[22px] leading-none font-medium">
+        Arquivo de <span className="logo-stamp text-[28px] text-tinta">UX</span>
+      </h1>
       <p className="label whitespace-nowrap" aria-label={`${seen} de ${total} termos vistos, ${review} para revisar`}>
         Vistos {pad(seen)} / {pad(total)} · Revisar {pad(review)}
       </p>

@@ -1,3 +1,5 @@
+import { normalize } from "./filters";
+import { importNewTerms } from "./imported-terms";
 import { MOCK_TERM_DETAILS } from "./mock-term-details";
 import { MOCK_TERMS } from "./mock-terms";
 import { EMPTY_PROGRESS, type ProgressMap, type Term, type TermProgress } from "./types";
@@ -32,17 +34,32 @@ function writeStoredProgress(progress: ProgressMap) {
   }
 }
 
+/** Sinônimos sem repetição e sem o próprio nome, ignorando caixa e acento. */
+function uniqueSynonyms(name: string, synonyms: string[]) {
+  const seen = new Set([normalize(name)]);
+  return synonyms.filter((synonym) => {
+    const key = normalize(synonym);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 /** Implementação provisória: termos em memória, progresso no navegador. */
 function createMockRepository(): GlossaryRepository {
   let memoryProgress: ProgressMap | null = null;
 
-  const terms: Term[] = [...MOCK_TERMS]
+  const { terms: importedTerms, synonymsByAppId } = importNewTerms(new Set(MOCK_TERMS.map((seed) => seed.id)));
+
+  const appTerms = MOCK_TERMS.map((seed) => {
+    const details = MOCK_TERM_DETAILS[seed.id];
+    if (!details) throw new Error(`Termo mock sem exemplo e dica: ${seed.id}`);
+    return { ...seed, ...details, synonyms: synonymsByAppId.get(seed.id) ?? [] };
+  });
+
+  const terms: Term[] = [...appTerms, ...importedTerms]
     .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
-    .map((seed, index) => {
-      const details = MOCK_TERM_DETAILS[seed.id];
-      if (!details) throw new Error(`Termo mock sem exemplo e dica: ${seed.id}`);
-      return { ...seed, ...details, number: index + 1 };
-    });
+    .map((term, index) => ({ ...term, synonyms: uniqueSynonyms(term.name, term.synonyms), number: index + 1 }));
 
   return {
     async listTerms() {

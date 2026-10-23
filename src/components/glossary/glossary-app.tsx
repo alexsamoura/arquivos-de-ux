@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { filterTerms, groupByRange, type GlossaryFilters } from "@/lib/glossary/filters";
-import { MAX_FOLDERS_PER_STACK, RANGES, type RangeId } from "@/lib/glossary/types";
+import { useMemo, useRef, useState } from "react";
+import { buildDrawers, groupByDrawer } from "@/lib/glossary/drawers";
+import { filterTerms, type GlossaryFilters } from "@/lib/glossary/filters";
+import { MAX_FOLDERS_PER_STACK, type DrawerId } from "@/lib/glossary/types";
 import { useGlossary } from "@/lib/glossary/use-glossary";
 import { ArchivePath } from "./archive-path";
 import { FolderStack } from "./folder-stack";
@@ -14,21 +15,23 @@ const INITIAL_FILTERS: GlossaryFilters = { query: "", category: null, onlyReview
 export function GlossaryApp() {
   const { terms, progress, updateProgress, loading } = useGlossary();
   const [filters, setFilters] = useState(INITIAL_FILTERS);
-  // null = arquivo fechado, mostrando só as pastas das letras.
-  const [selectedRange, setSelectedRange] = useState<RangeId | null>(null);
+  // null = arquivo fechado, mostrando o gaveteiro.
+  const [selectedRange, setSelectedRange] = useState<DrawerId | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const stackTopRef = useRef<HTMLDivElement>(null);
 
-  const allTerms = terms ?? [];
+  const allTerms = useMemo(() => terms ?? [], [terms]);
+  // As gavetas vêm de todos os termos, para o gaveteiro não mudar com a busca.
+  const { drawers, drawerOf } = useMemo(() => buildDrawers(allTerms), [allTerms]);
   const matches = filterTerms(allTerms, progress, filters);
-  const groups = groupByRange(matches);
-  const rangeCounts = Object.fromEntries(RANGES.map((r) => [r.id, groups[r.id].length])) as Record<RangeId, number>;
+  const groups = groupByDrawer(drawers, drawerOf, matches);
+  const rangeCounts = Object.fromEntries(drawers.map((d) => [d.id, groups[d.id].length])) as Record<DrawerId, number>;
 
-  // Se a faixa aberta ficou vazia com os filtros, mostra a primeira que tem resultado.
+  // Se a gaveta aberta ficou vazia com os filtros, mostra a primeira que tem resultado.
   const activeRange =
     selectedRange === null || rangeCounts[selectedRange] > 0 || matches.length === 0
       ? selectedRange
-      : (RANGES.find((r) => rangeCounts[r.id] > 0)?.id ?? selectedRange);
+      : (drawers.find((d) => rangeCounts[d.id] > 0)?.id ?? selectedRange);
 
   const rangeTerms = activeRange ? groups[activeRange] : [];
   const stackTerms = rangeTerms.slice(0, MAX_FOLDERS_PER_STACK);
@@ -45,7 +48,7 @@ export function GlossaryApp() {
       if (top && top.getBoundingClientRect().top < 0) top.scrollIntoView({ block: "start" });
     });
 
-  const selectRange = (range: RangeId | null) => {
+  const selectRange = (range: DrawerId | null) => {
     setSelectedRange(range);
     setOpenId(null);
     revealStackTop();
@@ -67,12 +70,13 @@ export function GlossaryApp() {
       ) : (
         <div ref={stackTopRef} className="flex scroll-mt-4 flex-col gap-5">
           <ArchivePath
-            rangeLabel={RANGES.find((r) => r.id === activeRange)?.label ?? null}
+            rangeLabel={drawers.find((d) => d.id === activeRange)?.label ?? null}
             openTerm={openTerm}
             onGoToLetters={() => selectRange(null)}
             onGoToRange={() => setOpenId(null)}
           />
           <FolderStack
+            drawers={drawers}
             activeRange={activeRange}
             rangeCounts={rangeCounts}
             onSelectRange={selectRange}
@@ -81,10 +85,7 @@ export function GlossaryApp() {
             matchCount={matches.length}
             progress={progress}
             openId={openTerm?.id ?? null}
-            onOpen={(termId) => {
-              setOpenId(termId);
-              if (termId) revealStackTop();
-            }}
+            onOpen={setOpenId}
             onUpdateProgress={updateProgress}
             overflow={overflow}
           />
