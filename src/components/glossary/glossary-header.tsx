@@ -1,9 +1,10 @@
-import { pad } from "@/lib/glossary/filters";
-
 interface GlossaryHeaderProps {
   seen: number;
   total: number;
   review: number;
+  /** O filtro de revisar está ligado. */
+  reviewActive: boolean;
+  onToggleReview: () => void;
 }
 
 /**
@@ -40,15 +41,34 @@ function InkFilter() {
   );
 }
 
-export function GlossaryHeader({ seen, total, review }: GlossaryHeaderProps) {
+export function GlossaryHeader({ seen, total, review, reviewActive, onToggleReview }: GlossaryHeaderProps) {
   return (
-    <header className="flex flex-col gap-3 border-b border-tinta pb-4 sm:flex-row sm:items-end sm:justify-between">
+    <header className="flex flex-col gap-3 border-b border-tinta pb-5 sm:flex-row sm:items-end sm:justify-between">
       <InkFilter />
-      <h1 className="flex items-center gap-3 text-[22px] leading-none font-medium">
-        Arquivo de <span className="logo-stamp text-[28px] text-tinta">UX</span>
-      </h1>
-      <p className="label whitespace-nowrap" aria-label={`${seen} de ${total} termos vistos, ${review} para revisar`}>
-        Vistos {pad(seen)} / {pad(total)} · Revisar {pad(review)}
+      <div className="flex flex-col gap-2.5">
+        <h1 className="flex items-center gap-3 text-[30px] leading-none font-medium">
+          Arquivo de <span className="logo-stamp text-tinta">UX</span>
+        </h1>
+        <p className="text-[15px] leading-snug text-tinta-suave">{total} termos de UX para consultar e revisar</p>
+      </div>
+      {/* Contador (metadado). "Revisar N" liga e desliga o filtro de revisar. */}
+      <p className="label flex items-center gap-2 whitespace-nowrap">
+        <span aria-label={`${seen} de ${total} termos vistos`}>
+          Vistos {seen} / {total}
+        </span>
+        <span aria-hidden>·</span>
+        <button
+          type="button"
+          aria-pressed={reviewActive}
+          disabled={review === 0 && !reviewActive}
+          onClick={onToggleReview}
+          aria-label={
+            reviewActive ? "Mostrar todos os termos" : `Mostrar só os ${review} termos para revisar`
+          }
+          className="label -my-1.5 cursor-pointer py-1.5 underline-offset-4 hover:underline disabled:cursor-default disabled:hover:no-underline aria-pressed:underline"
+        >
+          Revisar {review}
+        </button>
       </p>
     </header>
   );

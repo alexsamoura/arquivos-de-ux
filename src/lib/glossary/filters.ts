@@ -28,8 +28,3 @@ export function filterTerms(terms: Term[], progress: ProgressMap, filters: Gloss
     );
   });
 }
-
-/** Formata números com zeros à esquerda: 4 → "04", 12 → "012" com width 3. */
-export function pad(value: number, width = 2) {
-  return String(value).padStart(width, "0");
-}

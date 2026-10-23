@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { normalize, pad } from "@/lib/glossary/filters";
+import { normalize } from "@/lib/glossary/filters";
 import { EMPTY_PROGRESS, type Drawer, type DrawerId, type ProgressMap, type Term, type TermProgress } from "@/lib/glossary/types";
 import { DrawerCabinet, DrawerFace } from "./drawer-cabinet";
 import { FolderShape, STEP, TAB_H, TabLabel, tabWidthFor, type TabGeometry } from "./folder-shape";
@@ -352,7 +352,7 @@ export function FolderStack(props: FolderStackProps) {
                       {props.matchCount === 0
                         ? "Nenhum arquivo encontrado"
                         : props.overflow > 0
-                          ? `+${pad(props.overflow)} fora da pilha · refine a busca`
+                          ? `+${props.overflow} fora da pilha · refine a busca`
                           : "Escolha um termo"}
                     </span>
                   }

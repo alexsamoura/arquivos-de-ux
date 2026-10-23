@@ -54,27 +54,39 @@ export function GlossaryApp() {
     revealStackTop();
   };
 
+  const changeFilters = (next: GlossaryFilters) => {
+    setFilters(next);
+    setOpenId(null);
+  };
+  const drawerLabel = drawers.find((d) => d.id === activeRange)?.label ?? null;
+
   return (
-    <main className="mx-auto flex w-full max-w-[760px] flex-col gap-8 px-4 pt-8 pb-16 sm:px-8 sm:pt-12">
-      <GlossaryHeader seen={seenCount} total={allTerms.length} review={reviewCount} />
-      <GlossaryFiltersBar
-        filters={filters}
-        onChange={(next) => {
-          setFilters(next);
-          setOpenId(null);
-        }}
+    // Três grupos (cabeçalho, controles, conteúdo): 48px entre eles, 8–12px dentro.
+    <main className="mx-auto flex w-full max-w-[760px] flex-col gap-12 px-4 pt-8 pb-16 sm:px-8 sm:pt-12">
+      <GlossaryHeader
+        seen={seenCount}
+        total={allTerms.length}
+        review={reviewCount}
+        reviewActive={filters.onlyReview}
+        onToggleReview={() => changeFilters({ ...filters, onlyReview: !filters.onlyReview })}
       />
+      <GlossaryFiltersBar filters={filters} onChange={changeFilters} />
 
       {loading ? (
         <p className="label py-24 text-center text-tinta-suave">Abrindo arquivo…</p>
       ) : (
-        <div ref={stackTopRef} className="flex scroll-mt-4 flex-col gap-5">
-          <ArchivePath
-            rangeLabel={drawers.find((d) => d.id === activeRange)?.label ?? null}
-            openTerm={openTerm}
-            onGoToLetters={() => selectRange(null)}
-            onGoToRange={() => setOpenId(null)}
-          />
+        <section ref={stackTopRef} aria-labelledby="titulo-secao" className="flex scroll-mt-4 flex-col gap-3">
+          <div className="flex flex-col gap-2">
+            <ArchivePath
+              rangeLabel={drawerLabel}
+              openTerm={openTerm}
+              onGoToLetters={() => selectRange(null)}
+              onGoToRange={() => setOpenId(null)}
+            />
+            <h2 id="titulo-secao" className="text-[20px] leading-tight font-semibold">
+              {drawerLabel ? `Gaveta ${drawerLabel}` : "Gaveteiro"}
+            </h2>
+          </div>
           <FolderStack
             drawers={drawers}
             activeRange={activeRange}
@@ -89,7 +101,7 @@ export function GlossaryApp() {
             onUpdateProgress={updateProgress}
             overflow={overflow}
           />
-        </div>
+        </section>
       )}
     </main>
   );

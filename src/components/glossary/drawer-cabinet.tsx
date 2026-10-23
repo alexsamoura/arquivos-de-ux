@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useRef, type ReactNode } from "react";
-import { pad } from "@/lib/glossary/filters";
 import type { Drawer, DrawerId } from "@/lib/glossary/types";
 import { focusForKeyboard } from "./input-modality";
 
 export const DRAWER_H = 76;
 
 function termCount(count: number) {
-  return `${pad(count)} ${count === 1 ? "termo" : "termos"}`;
+  return `${count} ${count === 1 ? "termo" : "termos"}`;
 }
 
 interface DrawerFaceProps {

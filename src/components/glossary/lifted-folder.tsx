@@ -178,9 +178,9 @@ export function LiftedFolder(props: LiftedFolderProps) {
         </div>
 
         <div className="mt-5 flex flex-wrap items-center gap-3">
-          <h2 id={titleId} className="text-[18px] leading-snug font-medium tracking-[0.04em] uppercase">
+          <h3 id={titleId} className="text-[18px] leading-snug font-medium tracking-[0.04em] uppercase">
             {term.name}
-          </h2>
+          </h3>
           {progress.review ? <ReviewStamp /> : null}
         </div>
         {term.synonyms.length > 0 ? (
