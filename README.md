@@ -1,12 +1,12 @@
-📚 Arquivo de UX (Glossário de UX)
+📚 ###Arquivo de UX (Glossário de UX)
 
 Uma aplicação web interativa desenvolvida em Next.js para consulta, estudo e gerenciamento de termos de Experiência do Usuário (UX).
 
-🔍 Sobre o Projeto
+🔍 ###Sobre o Projeto
 
 O Arquivo de UX é uma ferramenta projetada para organizar conceitos, metodologias e padrões de UX de forma limpa, acessible e visualmente refinada. A interface simula um arquivo físico de consulta, permitindo filtrar termos por categorias, buscar definições em tempo real e acompanhar o progresso de leitura/revisão dos conteúdos diretamente no navegador (localStorage).
 
-✨ Funcionalidades Principais
+✨ ###Funcionalidades Principais
 
 Busca Instantânea: Pesquise termos ou definições dinamicamente.
 
@@ -18,7 +18,7 @@ Persistência Local: O progresso do usuário é salvo automaticamente no localSt
 
 Interface Editorial: Design minimalista inspirado em fichas e arquivos clássicos.
 
-🛠️ Tecnologias Utilizadas
+🛠️ ###Tecnologias Utilizadas
 
 Este projeto foi construído utilizando tecnologias modernas de desenvolvimento web:
 
@@ -28,7 +28,7 @@ React
 
 Tailwind CSS (para estilização)
 
-🚀 Como Executar o Projeto Localmente
+🚀 ###Como Executar o Projeto Localmente
 
 Siga os passos abaixo para rodar o projeto em sua máquina:
 
