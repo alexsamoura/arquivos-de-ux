@@ -1,3 +1,4 @@
+import { MOCK_TERM_DETAILS } from "./mock-term-details";
 import { MOCK_TERMS } from "./mock-terms";
 import { EMPTY_PROGRESS, type ProgressMap, type Term, type TermProgress } from "./types";
 
@@ -37,7 +38,11 @@ function createMockRepository(): GlossaryRepository {
 
   const terms: Term[] = [...MOCK_TERMS]
     .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
-    .map((seed, index) => ({ ...seed, number: index + 1 }));
+    .map((seed, index) => {
+      const details = MOCK_TERM_DETAILS[seed.id];
+      if (!details) throw new Error(`Termo mock sem exemplo e dica: ${seed.id}`);
+      return { ...seed, ...details, number: index + 1 };
+    });
 
   return {
     async listTerms() {

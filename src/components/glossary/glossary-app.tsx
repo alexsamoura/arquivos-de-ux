@@ -23,7 +23,6 @@ export function GlossaryApp() {
   const matches = filterTerms(allTerms, progress, filters);
   const groups = groupByRange(matches);
   const rangeCounts = Object.fromEntries(RANGES.map((r) => [r.id, groups[r.id].length])) as Record<RangeId, number>;
-  const filtering = filters.query.trim() !== "" || filters.category !== null || filters.onlyReview;
 
   // Se a faixa aberta ficou vazia com os filtros, mostra a primeira que tem resultado.
   const activeRange =
@@ -64,7 +63,7 @@ export function GlossaryApp() {
       />
 
       {loading ? (
-        <p className="label py-24 text-center text-ink-muted">Abrindo arquivo…</p>
+        <p className="label py-24 text-center text-tinta-suave">Abrindo arquivo…</p>
       ) : (
         <div ref={stackTopRef} className="flex scroll-mt-4 flex-col gap-5">
           <ArchivePath
@@ -80,7 +79,6 @@ export function GlossaryApp() {
             terms={stackTerms}
             total={allTerms.length}
             matchCount={matches.length}
-            filtering={filtering}
             progress={progress}
             openId={openTerm?.id ?? null}
             onOpen={(termId) => {

@@ -1,18 +1,12 @@
 "use client";
 
-import type { CSSProperties, ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { pad } from "@/lib/glossary/filters";
-import {
-  EMPTY_PROGRESS,
-  RANGES,
-  type ProgressMap,
-  type RangeId,
-  type Term,
-  type TermProgress,
-} from "@/lib/glossary/types";
-import { FolderShape, STEP, TAB_H, tabTextBox, tabWidthFor, type TabGeometry } from "./folder-shape";
-import { TermCard } from "./term-card";
-import { useElementWidth } from "./use-element-width";
+import { EMPTY_PROGRESS, RANGES, type ProgressMap, type RangeId, type Term, type TermProgress } from "@/lib/glossary/types";
+import { DrawerCabinet, DrawerFace } from "./drawer-cabinet";
+import { FolderShape, STEP, TAB_H, TabLabel, tabWidthFor, type TabGeometry } from "./folder-shape";
+import { LiftedFolder, prefersReducedMotion } from "./lifted-folder";
+import { useElementSize } from "./use-element-size";
 
 /** Altura de layout de uma pasta fechada: aba + faixa visível + folga escondida. */
 const SHEET_H = TAB_H + STEP + 8;
@@ -21,21 +15,16 @@ const SHEET_H = TAB_H + STEP + 8;
  * visível atrás das da frente; a pasta seguinte, mais larga, a cobre.
  */
 const SHEET_BODY_H = 1600;
-const FRONT_H = TAB_H + 128;
-/** Quanto do cartão aberto fica guardado dentro da pasta. */
-const TUCK = TAB_H + 14;
-/** No nível das letras há só quatro pastas, então cada uma desce mais e mostra mais corpo. */
-const LETTER_STEP = 56;
 const MAX_WIDTH_STEP = 12;
+/** Fração máxima da largura da pasta que uma aba pode ocupar. */
+const MAX_TAB_FRACTION = 0.86;
 const TERM_TAB_POSITIONS = ["left", "center", "right"] as const;
-const RANGE_TAB_FRACTIONS = [0.05, 0.29, 0.53, 0.77];
-/** Intervalo entre a entrada de uma pasta e a próxima ao trocar de nível. */
+/** Intervalo entre a entrada de uma pasta e a próxima ao abrir a gaveta. */
 const ENTER_STAGGER_MS = 30;
-
-type Range = (typeof RANGES)[number];
+const DRAWER_SLIDE_MS = 460;
 
 interface FolderStackProps {
-  /** Faixa aberta; `null` mostra o arquivo só com as pastas das letras. */
+  /** Gaveta aberta; `null` mostra a capa com o gaveteiro. */
   activeRange: RangeId | null;
   rangeCounts: Record<RangeId, number>;
   onSelectRange: (range: RangeId | null) => void;
@@ -43,7 +32,6 @@ interface FolderStackProps {
   total: number;
   /** Termos que batem com os filtros, somando todas as faixas. */
   matchCount: number;
-  filtering: boolean;
   progress: ProgressMap;
   openId: string | null;
   onOpen: (termId: string | null) => void;
@@ -52,118 +40,97 @@ interface FolderStackProps {
   overflow: number;
 }
 
-type Layer =
-  | { kind: "range"; range: Range; index: number }
-  | { kind: "term"; term: Term; index: number }
-  | { kind: "front" };
-
 export function FolderStack(props: FolderStackProps) {
-  const { activeRange, terms, openId } = props;
-  const [ref, containerWidth] = useElementWidth<HTMLDivElement>();
+  const { activeRange, terms, openId, progress } = props;
+  const [ref, { width: containerWidth }] = useElementSize<HTMLDivElement>();
+  const [liftedHeight, setLiftedHeight] = useState(0);
+  // Posição na tela da gaveta clicada no gaveteiro, de onde a gaveta aberta desliza.
+  const [drawerOrigin, setDrawerOrigin] = useState<number | null>(null);
+  // Pasta que recebe o foco de volta quando a ficha fecha. O foco só é aceito
+  // depois que a pilha deixa de ser inert, por isso fica para o efeito.
+  const returnFocusRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (openId || !returnFocusRef.current) return;
+    document.getElementById(folderButtonId(returnFocusRef.current))?.focus({ preventScroll: true });
+    returnFocusRef.current = null;
+  }, [openId]);
 
   const range = RANGES.find((r) => r.id === activeRange) ?? null;
-  const layers: Layer[] = range
-    ? [
-        { kind: "range", range, index: RANGES.indexOf(range) },
-        ...terms.map((term, index) => ({ kind: "term" as const, term, index })),
-        { kind: "front" },
-      ]
-    : [...RANGES.map((r, index) => ({ kind: "range" as const, range: r, index })), { kind: "front" }];
 
-  // Falsa perspectiva: cada camada à frente é um pouco mais larga. Em telas
-  // estreitas o passo diminui para a pasta do fundo não ficar apertada demais.
+  if (!range) {
+    // Mesmo contêiner medido nas duas vistas, para a largura já estar pronta ao abrir a gaveta.
+    return (
+      <div ref={ref}>
+        <DrawerCabinet
+          rangeCounts={props.rangeCounts}
+          hasResults={props.matchCount > 0}
+          onOpen={(rangeId, originTop) => {
+            setDrawerOrigin(originTop);
+            props.onSelectRange(rangeId);
+          }}
+        />
+      </div>
+    );
+  }
+
+  // Pastas + a gaveta na frente. Falsa perspectiva: cada camada à frente é um
+  // pouco mais larga; em telas estreitas o passo diminui.
+  const layerCount = terms.length + 1;
   const widthStep =
-    layers.length > 1 ? Math.min(MAX_WIDTH_STEP, Math.floor((containerWidth * 0.26) / (layers.length - 1))) : 0;
-  const widthOf = (index: number) => containerWidth - (layers.length - 1 - index) * widthStep;
+    layerCount > 1 ? Math.min(MAX_WIDTH_STEP, Math.floor((containerWidth * 0.26) / (layerCount - 1))) : 0;
+  const widthOf = (index: number) => containerWidth - (layerCount - 1 - index) * widthStep;
 
-  // Com um termo aberto, a pasta dele vai para o topo: as de trás saem da pilha
-  // e o cartão sobe de dentro dela. As larguras continuam as da pilha completa.
-  const openIndex = openId ? layers.findIndex((l) => l.kind === "term" && l.term.id === openId) : -1;
-  const firstVisible = Math.max(openIndex, 0);
-  const step = range ? STEP : LETTER_STEP;
-
-  const closeCard = (termId: string) => {
-    props.onOpen(null);
-    requestAnimationFrame(() => document.getElementById(folderButtonId(termId))?.focus({ preventScroll: true }));
+  const tabFor = (term: Term, index: number, width: number, marks: { seen: boolean; review: boolean }) => {
+    const tabW = tabWidthFor(term.name, width * MAX_TAB_FRACTION, marks);
+    const position = TERM_TAB_POSITIONS[index % TERM_TAB_POSITIONS.length];
+    return placeTab(width, tabW, position === "left" ? 18 : position === "center" ? (width - tabW) / 2 : width);
   };
 
+  const openIndex = openId ? terms.findIndex((t) => t.id === openId) : -1;
+  const openTerm = openIndex >= 0 ? terms[openIndex] : null;
+
   return (
-    // overflow: clip (e não hidden) corta os corpos altos das pastas sem criar uma
-    // área rolável, que o foco ou o scrollIntoView poderiam deslocar.
-    <div ref={ref} className="overflow-clip pt-1">
-      {containerWidth > 0 &&
-        layers.slice(firstVisible).map((layer, visibleIndex) => {
-          const layerIndex = firstVisible + visibleIndex;
-          const width = widthOf(layerIndex);
-          const style: CSSProperties = {
-            width,
-            zIndex: layerIndex + 1,
-            marginTop: visibleIndex === 0 ? 0 : step - SHEET_H,
-            animationDelay: `${layerIndex * ENTER_STAGGER_MS}ms`,
-          };
-
-          if (layer.kind === "range") {
-            return (
-              <RangeSheet
-                key={`range-${layer.range.id}`}
-                style={style}
-                width={width}
-                layer={layer}
-                step={step}
-                count={props.rangeCounts[layer.range.id]}
-                isOpen={range !== null}
-                onSelect={() => props.onSelectRange(range ? null : layer.range.id)}
-              />
-            );
-          }
-
-          if (layer.kind === "term") {
-            const { term } = layer;
-            const termProgress = props.progress[term.id] ?? EMPTY_PROGRESS;
-            const isOpen = openId === term.id;
-            const label = `${pad(term.number, 3)} ${term.name}${termProgress.review ? " [R]" : ""}`;
-            const tabW = tabWidthFor(label, width * 0.72);
-            const position = TERM_TAB_POSITIONS[layer.index % TERM_TAB_POSITIONS.length];
-            const tab = placeTab(width, tabW, position === "left" ? 18 : position === "center" ? (width - tabW) / 2 : width);
+    <div
+      ref={ref}
+      className="relative"
+      // A pasta erguida pode ser mais alta que a pilha: reserva o espaço dela.
+      style={{ minHeight: openTerm ? liftedHeight + 8 : undefined }}
+    >
+      {/* overflow: clip (e não hidden) corta os corpos altos das pastas sem criar
+          uma área rolável, que o foco ou o scrollIntoView poderiam deslocar. */}
+      <div className="overflow-clip pt-1" inert={openTerm !== null}>
+        {containerWidth > 0 &&
+          terms.map((term, index) => {
+            const width = widthOf(index);
+            const termProgress = progress[term.id] ?? EMPTY_PROGRESS;
+            const tab = tabFor(term, index, width, termProgress);
+            const open = () => props.onOpen(term.id);
+            const style: CSSProperties = {
+              width,
+              zIndex: index + 1,
+              marginTop: index === 0 ? 0 : STEP - SHEET_H,
+              animationDelay: `${index * ENTER_STAGGER_MS}ms`,
+              // A pasta aberta sai da pilha e deixa o vão no lugar dela.
+              visibility: openId === term.id ? "hidden" : undefined,
+            };
 
             return (
-              <Sheet
-                key={term.id}
-                style={style}
-                width={width}
-                tab={tab}
-                drawer={
-                  isOpen ? (
-                    <div style={{ marginBottom: -TUCK }}>
-                      <div className="card-rise mx-auto" style={{ width: width - 32 }}>
-                        <TermCard
-                          key={term.id}
-                          term={term}
-                          total={props.total}
-                          progress={termProgress}
-                          tuckedHeight={TUCK}
-                          onReveal={() => props.onUpdateProgress(term.id, { seen: true })}
-                          onMark={(review) => {
-                            props.onUpdateProgress(term.id, { seen: true, review });
-                            closeCard(term.id);
-                          }}
-                          onClose={() => closeCard(term.id)}
-                        />
-                      </div>
-                    </div>
-                  ) : null
-                }
-              >
-                <TabLabel tab={tab} className={isOpen ? "underline underline-offset-4" : "group-hover:underline group-hover:underline-offset-4"}>
-                  {label}
+              <Sheet key={term.id} id={slotId(term.id)} style={style} width={width} tab={tab}>
+                <TabLabel
+                  tab={tab}
+                  seen={termProgress.seen}
+                  review={termProgress.review}
+                  className="group-hover:underline group-hover:underline-offset-4"
+                >
+                  {term.name}
                 </TabLabel>
                 {/* Área clicável = aba + faixa visível do corpo, sem invadir a pasta de trás. */}
                 <button
                   id={folderButtonId(term.id)}
                   type="button"
-                  onClick={() => (isOpen ? closeCard(term.id) : props.onOpen(term.id))}
-                  aria-expanded={isOpen}
-                  aria-label={`${pad(term.number, 3)} ${term.name}${termProgress.review ? ", marcado para revisar" : ""}${termProgress.seen ? ", já visto" : ""}`}
+                  onClick={open}
+                  aria-label={`${term.name}${termProgress.seen ? ", já visto" : ""}${termProgress.review ? ", marcado para revisar" : ""}`}
                   className="absolute left-0 cursor-pointer"
                   style={{ top: TAB_H, width, height: STEP }}
                 />
@@ -171,132 +138,117 @@ export function FolderStack(props: FolderStackProps) {
                   type="button"
                   tabIndex={-1}
                   aria-hidden
-                  onClick={() => (isOpen ? closeCard(term.id) : props.onOpen(term.id))}
+                  onClick={open}
                   className="absolute top-0 cursor-pointer"
                   style={{ left: tab.x, width: tab.width, height: TAB_H }}
                 />
               </Sheet>
             );
-          }
+          })}
 
-          return (
-            <Sheet key={`front-${activeRange ?? "arquivo"}`} style={style} width={width} tab={null} height={FRONT_H} bodyHeight={FRONT_H}>
-              <div
-                className="absolute inset-x-0 flex flex-col items-center justify-center gap-3 px-4 text-center"
-                style={{ top: TAB_H, bottom: 0 }}
-                aria-live="polite"
-              >
-                <FrontLabel {...props} rangeLabel={range?.label ?? null} />
-              </div>
-            </Sheet>
-          );
-        })}
+        {containerWidth > 0 ? (
+          <OpenDrawer
+            key={range.id}
+            origin={drawerOrigin}
+            onSlid={() => setDrawerOrigin(null)}
+            style={{
+              position: "relative",
+              zIndex: layerCount,
+              // Alinha a borda de cima da gaveta onde ficaria o corpo de uma pasta.
+              marginTop: terms.length === 0 ? 0 : STEP - SHEET_H + TAB_H,
+            }}
+          >
+            <DrawerFace
+              label={range.label}
+              count={terms.length + props.overflow}
+              height={124}
+              footer={
+                <p className="label px-4 text-center text-tinta-suave" aria-live="polite">
+                  {props.matchCount === 0
+                    ? "Nenhum arquivo encontrado"
+                    : props.overflow > 0
+                      ? `+${pad(props.overflow)} fora da pilha · refine a busca`
+                      : "Escolha um termo e tente lembrar"}
+                </p>
+              }
+            />
+          </OpenDrawer>
+        ) : null}
+      </div>
+
+      {openTerm && containerWidth > 0 ? (
+        <LiftedFolder
+          key={openTerm.id}
+          term={openTerm}
+          total={props.total}
+          progress={progress[openTerm.id] ?? EMPTY_PROGRESS}
+          width={widthOf(openIndex)}
+          left={(containerWidth - widthOf(openIndex)) / 2}
+          tab={tabFor(openTerm, openIndex, widthOf(openIndex), { seen: false, review: false })}
+          stackZ={openIndex + 1}
+          slotId={slotId(openTerm.id)}
+          onHeightChange={setLiftedHeight}
+          onReveal={() => props.onUpdateProgress(openTerm.id, { seen: true })}
+          onMark={(review) => props.onUpdateProgress(openTerm.id, { seen: true, review })}
+          onClosed={() => {
+            returnFocusRef.current = openTerm.id;
+            props.onOpen(null);
+          }}
+        />
+      ) : null}
     </div>
   );
 }
 
-function FrontLabel({
-  rangeLabel,
-  terms,
-  total,
-  matchCount,
-  filtering,
-  overflow,
-  onSelectRange,
-}: FolderStackProps & { rangeLabel: string | null }) {
-  if (matchCount === 0) return <p className="label">Nenhum arquivo encontrado</p>;
-
-  if (rangeLabel === null) {
-    return (
-      <>
-        <p className="label">
-          Arquivo / {pad(filtering ? matchCount : total)} {filtering ? "encontrados" : "termos"}
-        </p>
-        <p className="label text-ink-muted">Escolha uma letra</p>
-      </>
-    );
-  }
-
-  return (
-    <>
-      <p className="label">
-        {rangeLabel} / {pad(terms.length)} {terms.length === 1 ? "arquivo" : "arquivos"}
-      </p>
-      <p className="label text-ink-muted">
-        {overflow > 0 ? `+${pad(overflow)} fora da pilha · refine a busca` : "Escolha um termo e tente lembrar"}
-      </p>
-      <button type="button" className="label mt-2 py-1.5 underline-offset-4 hover:underline" onClick={() => onSelectRange(null)}>
-        Voltar às letras
-      </button>
-    </>
-  );
-}
-
-interface RangeSheetProps {
+/**
+ * Gaveta aberta na frente da pilha. Ao montar, desliza da posição que tinha no
+ * gaveteiro até aqui (FLIP), enquanto as pastas sobem de dentro dela.
+ */
+function OpenDrawer({
+  origin: initialOrigin,
+  onSlid,
+  style,
+  children,
+}: {
+  /** Topo da gaveta no gaveteiro, na tela; `null` abre sem deslizar. */
+  origin: number | null;
+  /** A origem foi usada e pode ser descartada. */
+  onSlid: () => void;
   style: CSSProperties;
-  width: number;
-  layer: Extract<Layer, { kind: "range" }>;
-  /** Faixa visível do corpo, entre esta pasta e a da frente. */
-  step: number;
-  count: number;
-  /** A faixa está aberta e esta pasta serve de cabeçalho da pilha de termos. */
-  isOpen: boolean;
-  onSelect: () => void;
-}
+  children: ReactNode;
+}) {
+  const drawerRef = useRef<HTMLDivElement>(null);
+  // Lida uma vez na montagem: o efeito pode rodar duas vezes (Strict Mode) e
+  // precisa da mesma origem nas duas.
+  const [origin] = useState(initialOrigin);
 
-function RangeSheet({ style, width, layer, step, count, isOpen, onSelect }: RangeSheetProps) {
-  const tabW = tabWidthFor("A–C", width * 0.4);
-  const tab = placeTab(width, tabW, RANGE_TAB_FRACTIONS[layer.index] * width);
-  const empty = count === 0 && !isOpen;
-  const hint = isOpen ? "Voltar às letras" : `${pad(count)} ${count === 1 ? "arquivo" : "arquivos"}`;
+  useLayoutEffect(() => {
+    onSlid();
+    const drawer = drawerRef.current;
+    if (origin === null || !drawer || prefersReducedMotion()) return;
+    const offset = origin - drawer.getBoundingClientRect().top;
+    const animation = drawer.animate([{ transform: `translateY(${offset}px)` }, { transform: "none" }], {
+      duration: DRAWER_SLIDE_MS,
+      easing: "cubic-bezier(0.2, 0.7, 0.2, 1)",
+    });
+    return () => animation.cancel();
+    // Só na montagem: cada gaveta aberta monta de novo (key = faixa).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
-    <Sheet style={style} width={width} tab={tab} filledTab>
-      <TabLabel tab={tab} className="text-folder">
-        {layer.range.label}
-      </TabLabel>
-      {isOpen ? (
-        // Pasta da letra aberta, no topo da pilha de termos: dica de volta à direita.
-        <span
-          aria-hidden
-          className="label pointer-events-none absolute right-5 text-ink-muted group-hover:text-ink"
-          style={{ top: TAB_H, lineHeight: `${step}px` }}
-        >
-          {hint}
-        </span>
-      ) : (
-        // Contagem logo abaixo da aba, acima de onde a aba da pasta seguinte encosta.
-        <span
-          aria-hidden
-          className={`label pointer-events-none absolute group-hover:underline group-hover:underline-offset-4 ${empty ? "text-ink-muted" : ""}`}
-          style={{ top: TAB_H + 11, left: tab.x + 10 }}
-        >
-          {hint}
-        </span>
-      )}
-      <button
-        type="button"
-        onClick={onSelect}
-        disabled={empty}
-        aria-label={isOpen ? `Fechar faixa ${layer.range.label} e voltar às letras` : `Abrir faixa ${layer.range.label}, ${count} arquivos`}
-        className="absolute left-0 cursor-pointer disabled:cursor-not-allowed"
-        style={{ top: TAB_H, width, height: step }}
-      />
-      <button
-        type="button"
-        tabIndex={-1}
-        aria-hidden
-        onClick={onSelect}
-        disabled={empty}
-        className="absolute top-0 cursor-pointer disabled:cursor-not-allowed"
-        style={{ left: tab.x, width: tab.width, height: TAB_H }}
-      />
-    </Sheet>
+    <div ref={drawerRef} style={style}>
+      {children}
+    </div>
   );
 }
 
 function folderButtonId(termId: string) {
   return `pasta-${termId}`;
+}
+
+function slotId(termId: string) {
+  return `vao-${termId}`;
 }
 
 /** Mantém a aba dentro da pasta, com respiro mínimo nas bordas. */
@@ -306,37 +258,18 @@ function placeTab(width: number, tabWidth: number, x: number): TabGeometry {
 }
 
 interface SheetProps {
+  id?: string;
   style: CSSProperties;
   width: number;
   tab: TabGeometry | null;
-  filledTab?: boolean;
-  height?: number;
-  bodyHeight?: number;
-  drawer?: ReactNode;
   children: ReactNode;
 }
 
-function Sheet({ style, width, tab, filledTab, height = SHEET_H, bodyHeight = SHEET_BODY_H, drawer, children }: SheetProps) {
+function Sheet({ id, style, width, tab, children }: SheetProps) {
   return (
-    <div className="sheet-enter relative mx-auto" style={style}>
-      {drawer}
-      <div className="group relative" style={{ height }}>
-        <FolderShape width={width} height={bodyHeight} tab={tab} filledTab={filledTab} />
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function TabLabel({ tab, className = "", children }: { tab: TabGeometry; className?: string; children: ReactNode }) {
-  const box = tabTextBox(tab);
-  return (
-    <span
-      aria-hidden
-      className={`label pointer-events-none absolute top-0 truncate text-center ${className}`}
-      style={{ left: box.left, width: box.width, height: TAB_H, lineHeight: `${TAB_H + 1}px` }}
-    >
+    <div id={id} className="sheet-enter group relative mx-auto" style={{ ...style, height: SHEET_H }}>
+      <FolderShape width={width} height={SHEET_BODY_H} tab={tab} />
       {children}
-    </span>
+    </div>
   );
 }

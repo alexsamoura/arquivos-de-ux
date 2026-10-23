@@ -1,4 +1,3 @@
-import { pad } from "@/lib/glossary/filters";
 import type { Term } from "@/lib/glossary/types";
 
 interface ArchivePathProps {
@@ -8,9 +7,9 @@ interface ArchivePathProps {
   onGoToRange: () => void;
 }
 
-/** Caminho do arquivo: ARQUIVO / A–C / 003 AFFORDANCE. Cada nível anterior volta para ele. */
+/** Caminho do arquivo: ARQUIVO / A–C / AFFORDANCE. Cada nível anterior volta para ele. */
 export function ArchivePath({ rangeLabel, openTerm, onGoToLetters, onGoToRange }: ArchivePathProps) {
-  const linkClass = "label cursor-pointer text-ink-muted underline-offset-4 hover:text-ink hover:underline";
+  const linkClass = "label cursor-pointer text-tinta-suave underline-offset-4 hover:text-tinta hover:underline";
 
   return (
     <nav aria-label="Caminho no arquivo" className="label flex min-h-5 flex-wrap items-center gap-x-2 gap-y-1">
@@ -23,7 +22,7 @@ export function ArchivePath({ rangeLabel, openTerm, onGoToLetters, onGoToRange }
       )}
       {rangeLabel ? (
         <>
-          <span aria-hidden className="text-ink-muted">
+          <span aria-hidden className="text-tinta-suave">
             /
           </span>
           {openTerm ? (
@@ -37,11 +36,11 @@ export function ArchivePath({ rangeLabel, openTerm, onGoToLetters, onGoToRange }
       ) : null}
       {openTerm ? (
         <>
-          <span aria-hidden className="text-ink-muted">
+          <span aria-hidden className="text-tinta-suave">
             /
           </span>
           <span aria-current="page" className="truncate">
-            {pad(openTerm.number, 3)} {openTerm.name}
+            {openTerm.name}
           </span>
         </>
       ) : null}

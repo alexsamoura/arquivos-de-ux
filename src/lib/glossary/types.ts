@@ -26,6 +26,10 @@ export interface Term {
   number: number;
   name: string;
   definition: string;
+  /** Situação concreta em que o termo aparece. */
+  example: string;
+  /** Pista para fixar o significado. */
+  tip: string;
   category: Category;
 }
 
