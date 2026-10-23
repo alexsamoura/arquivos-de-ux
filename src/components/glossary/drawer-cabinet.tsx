@@ -6,13 +6,13 @@ import { focusForKeyboard } from "./input-modality";
 
 export const DRAWER_H = 76;
 
-function termCount(count: number) {
+/** Quantidade de termos por extenso. Só vai no aria-label: a frente da gaveta mostra apenas a etiqueta. */
+export function termCount(count: number) {
   return `${count} ${count === 1 ? "termo" : "termos"}`;
 }
 
 interface DrawerFaceProps {
   label: string;
-  count: number;
   /** Texto pequeno abaixo do puxador, na gaveta aberta. */
   footer?: ReactNode;
   muted?: boolean;
@@ -27,8 +27,8 @@ interface DrawerFaceProps {
 /** Distância entre as duas linhas da borda de cima da frente aberta. */
 const PANEL_RIM = 5;
 
-/** Frente de gaveta: porta-etiqueta com a faixa e a contagem, e o puxador abaixo. */
-export function DrawerFace({ label, count, footer, muted = false, height = DRAWER_H, panelWidth }: DrawerFaceProps) {
+/** Frente de gaveta: porta-etiqueta só com a letra ou faixa, e o puxador abaixo. */
+export function DrawerFace({ label, footer, muted = false, height = DRAWER_H, panelWidth }: DrawerFaceProps) {
   return (
     <div
       className={`relative flex flex-col items-center justify-center gap-2.5 ${panelWidth ? "pt-1" : "border border-tinta bg-papel"}`}
@@ -55,7 +55,6 @@ export function DrawerFace({ label, count, footer, muted = false, height = DRAWE
         className={`relative flex min-w-32 flex-col items-center gap-1.5 border border-tinta bg-papel px-4 py-2 ${muted ? "text-tinta-suave" : ""}`}
       >
         <span className="tab-label text-[15px] font-medium">{label}</span>
-        <span className="label text-tinta-suave">{termCount(count)}</span>
       </span>
       <span aria-hidden className="relative block h-2 w-16 rounded-full border border-tinta" />
       {footer ? <span className="relative">{footer}</span> : null}
@@ -102,11 +101,11 @@ export function DrawerCabinet({ drawers, rangeCounts, focusRange, onOpen, hasRes
                 type="button"
                 data-range={range.id}
                 disabled={empty}
-                aria-label={`Abrir gaveta ${range.label}, ${count} ${count === 1 ? "termo" : "termos"}`}
+                aria-label={`Abrir gaveta ${range.label}, ${termCount(count)}`}
                 onClick={(event) => onOpen(range.id, event.currentTarget.getBoundingClientRect().top)}
                 className="group block w-full cursor-pointer text-left disabled:cursor-not-allowed motion-safe:transition-transform motion-safe:duration-150 enabled:hover:translate-y-0.5"
               >
-                <DrawerFace label={range.label} count={count} muted={empty} />
+                <DrawerFace label={range.label} muted={empty} />
               </button>
             </div>
           );

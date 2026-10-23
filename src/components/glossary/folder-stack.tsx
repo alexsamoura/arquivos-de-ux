@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { normalize } from "@/lib/glossary/filters";
 import { EMPTY_PROGRESS, type Drawer, type DrawerId, type ProgressMap, type Term, type TermProgress } from "@/lib/glossary/types";
-import { DrawerCabinet, DrawerFace } from "./drawer-cabinet";
+import { DrawerCabinet, DrawerFace, termCount } from "./drawer-cabinet";
 import { FolderShape, STEP, TAB_H, TabLabel, tabWidthFor, type TabGeometry } from "./folder-shape";
 import { focusForKeyboard } from "./input-modality";
 import { LIFT_BASE_Y, LIFT_EASE, LiftedFolder, prefersReducedMotion } from "./lifted-folder";
@@ -337,12 +337,11 @@ export function FolderStack(props: FolderStackProps) {
               <button
                 type="button"
                 onClick={closeDrawer}
-                aria-label={`Fechar gaveta ${range.label}`}
+                aria-label={`Fechar gaveta ${range.label}, ${termCount(terms.length)}`}
                 className="block w-full cursor-pointer motion-safe:transition-transform motion-safe:duration-150 hover:translate-y-[3px] focus-visible:translate-y-[3px]"
               >
                 <DrawerFace
                   label={range.label}
-                  count={terms.length}
                   height={DRAWER_FRONT_H}
                   panelWidth={containerWidth}
                   footer={
