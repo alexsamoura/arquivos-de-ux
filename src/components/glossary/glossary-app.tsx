@@ -73,7 +73,11 @@ export function GlossaryApp() {
       {loading ? (
         <p className="label py-24 text-center text-tinta-suave">Abrindo arquivo…</p>
       ) : (
-        <section ref={stackTopRef} aria-labelledby="titulo-secao" className="flex scroll-mt-4 flex-col gap-3">
+        <section
+          ref={stackTopRef}
+          {...(drawerLabel ? { "aria-label": `Gaveta ${drawerLabel}` } : { "aria-labelledby": "titulo-secao" })}
+          className="flex scroll-mt-4 flex-col gap-3"
+        >
           <div className="flex flex-col gap-2">
             <ArchivePath
               rangeLabel={drawerLabel}
@@ -81,9 +85,12 @@ export function GlossaryApp() {
               onGoToLetters={() => selectRange(null)}
               onGoToRange={() => setOpenId(null)}
             />
-            <h2 id="titulo-secao" className="text-[20px] leading-tight font-semibold">
-              {drawerLabel ? `Gaveta ${drawerLabel}` : "Gaveteiro"}
-            </h2>
+            {/* Título só na capa; dentro de uma gaveta, o caminho já diz onde se está. */}
+            {drawerLabel ? null : (
+              <h2 id="titulo-secao" className="text-[20px] leading-tight font-semibold">
+                Gaveteiro
+              </h2>
+            )}
           </div>
           <FolderStack
             drawers={drawers}
