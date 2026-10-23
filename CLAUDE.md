@@ -1,4 +1,4 @@
-# Arquivo de UX — instruções para o Claude
+# Arquivos de UX — instruções para o Claude
 
 ## Regra permanente de teste no navegador
 

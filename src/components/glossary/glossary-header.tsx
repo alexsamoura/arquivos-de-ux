@@ -47,7 +47,7 @@ export function GlossaryHeader({ seen, total, review, reviewActive, onToggleRevi
       <InkFilter />
       <div className="flex flex-col gap-2.5">
         <h1 className="flex items-center gap-3 text-[30px] leading-none font-medium">
-          Arquivo de <span className="logo-stamp text-tinta">UX</span>
+          Arquivos de <span className="logo-stamp text-tinta">UX</span>
         </h1>
         <p className="text-[15px] leading-snug text-tinta-suave">{total} termos de UX para consultar e revisar</p>
       </div>

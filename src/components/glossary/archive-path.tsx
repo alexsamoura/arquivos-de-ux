@@ -7,7 +7,7 @@ interface ArchivePathProps {
   onGoToRange: () => void;
 }
 
-/** Caminho do arquivo: ARQUIVO / A–C / AFFORDANCE. Cada nível anterior volta para ele. */
+/** Caminho no arquivo: ARQUIVOS / A–C / AFFORDANCE. Cada nível anterior volta para ele. */
 export function ArchivePath({ rangeLabel, openTerm, onGoToLetters, onGoToRange }: ArchivePathProps) {
   const linkClass = "label cursor-pointer text-tinta-suave underline-offset-4 hover:text-tinta hover:underline";
 
@@ -15,10 +15,10 @@ export function ArchivePath({ rangeLabel, openTerm, onGoToLetters, onGoToRange }
     <nav aria-label="Caminho no arquivo" className="label flex min-h-5 flex-wrap items-center gap-x-2 gap-y-1">
       {rangeLabel ? (
         <button type="button" className={linkClass} onClick={onGoToLetters}>
-          Arquivo
+          Arquivos
         </button>
       ) : (
-        <span aria-current="page">Arquivo</span>
+        <span aria-current="page">Arquivos</span>
       )}
       {rangeLabel ? (
         <>

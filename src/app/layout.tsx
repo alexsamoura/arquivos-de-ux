@@ -23,7 +23,7 @@ const archivoBlack = Archivo_Black({
 });
 
 export const metadata: Metadata = {
-  title: "Arquivo de UX",
+  title: "Arquivos de UX",
   description: "Arquivo pessoal de termos de Product Design para estudo por recuperação ativa.",
 };
 
