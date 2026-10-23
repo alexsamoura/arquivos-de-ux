@@ -10,6 +10,8 @@ export function useElementWidth<T extends HTMLElement>() {
   useLayoutEffect(() => {
     const element = ref.current;
     if (!element) return;
+    // Lê na montagem: o observer pode demorar a disparar (ex.: aba em segundo plano).
+    setWidth(Math.floor(element.getBoundingClientRect().width));
     const observer = new ResizeObserver(([entry]) => setWidth(Math.floor(entry.contentRect.width)));
     observer.observe(element);
     return () => observer.disconnect();
