@@ -1,7 +1,7 @@
-# 🚀 Arquivos de UX — {reprograma} (Thodas em Tech Futuro+)
+# 🚀 Arquivos de UX — {reprograma} (Todas em Tech Futuro+ { IA Aplicada })
 
 <p align="center">
-  <b>Repositório dedicado ao projeto prático da semana do programa de Inteligência Artificial da {reprograma}.</b>
+  <b>Repositório dedicado ao projeto prático da semana 12 (Vibe Coding) do curso Todas em Tech Futuro+ { IA Aplicada }, da {reprograma}.</b>
 </p>
 
 <p align="center">
