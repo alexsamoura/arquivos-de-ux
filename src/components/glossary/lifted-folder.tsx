@@ -134,14 +134,14 @@ export function LiftedFolder(props: LiftedFolderProps) {
   }, []);
 
   const titleId = `ficha-${term.id}-titulo`;
-  const buttonClass = "label cursor-pointer border border-tinta px-3 py-2.5 hover:bg-tinta hover:text-papel";
+  const buttonClass = "label cursor-pointer border-2 border-tinta px-3 py-2.5 hover:bg-tinta hover:text-contra";
 
   return (
     <section
       ref={rootRef}
       tabIndex={-1}
       aria-labelledby={titleId}
-      className="absolute focus:outline-none"
+      className="superficie absolute focus:outline-none"
       style={{
         top: LIFT_BASE_Y - height,
         left: (sheetWidth - width) / 2,
@@ -190,7 +190,7 @@ export function LiftedFolder(props: LiftedFolderProps) {
           </p>
         ) : null}
 
-        <dl className="mt-5 flex flex-col gap-4 border-t border-tinta pt-5">
+        <dl className="mt-5 flex flex-col gap-4 border-t-2 border-tinta pt-5">
           <FolderField label="Definição">{term.definition}</FolderField>
           <FolderField label="Exemplo">{term.example}</FolderField>
           <FolderField label="Dica">{term.tip}</FolderField>

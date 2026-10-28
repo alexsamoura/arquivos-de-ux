@@ -45,7 +45,7 @@ function InkFilter() {
 
 export function GlossaryHeader({ ready, seen, total, review, reviewActive, onToggleReview }: GlossaryHeaderProps) {
   return (
-    <header className="flex flex-col gap-3 border-b border-tinta pb-5 sm:flex-row sm:items-end sm:justify-between">
+    <header className="flex flex-col gap-3 border-b-2 border-tinta pb-5 sm:flex-row sm:items-end sm:justify-between">
       <InkFilter />
       <div className="flex flex-col gap-2.5">
         <h1 className="flex items-center gap-3 text-[30px] leading-none font-medium">
@@ -69,7 +69,12 @@ export function GlossaryHeader({ ready, seen, total, review, reviewActive, onTog
           aria-label={
             reviewActive ? "Mostrar todos os termos" : `Mostrar só os ${review} termos para revisar`
           }
-          className="label -my-1.5 cursor-pointer py-1.5 underline-offset-4 hover:underline disabled:cursor-default disabled:hover:no-underline aria-pressed:underline"
+          // Ligado: etiqueta creme com sublinhado magenta, como o filtro de categoria ativo.
+          className={`label -my-1.5 cursor-pointer px-2 py-1.5 underline-offset-4 disabled:cursor-default ${
+            reviewActive
+              ? "superficie bg-papel underline decoration-destaque decoration-2"
+              : "hover:underline disabled:hover:no-underline"
+          }`}
         >
           Revisar {review}
         </button>

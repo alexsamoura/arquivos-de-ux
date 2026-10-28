@@ -8,10 +8,16 @@ interface GlossaryFiltersProps {
   onChange: (filters: GlossaryFilters) => void;
 }
 
-/** Controles em caixa normal, no tamanho do conteúdo (15px); caixa alta fica só nos metadados. */
+/**
+ * Controles em caixa normal, no tamanho do conteúdo (15px); caixa alta fica só nos
+ * metadados. O ativo vira uma etiqueta creme com sublinhado magenta: o magenta
+ * só tem contraste sobre o creme, não direto no fundo escuro.
+ */
 function optionClass(active: boolean) {
-  return `cursor-pointer py-1 text-[15px] ${
-    active ? "text-tinta underline decoration-1 underline-offset-[5px]" : "text-tinta-suave hover:text-tinta"
+  return `cursor-pointer px-2 py-1 text-[15px] ${
+    active
+      ? "superficie bg-papel underline decoration-destaque decoration-2 underline-offset-[5px]"
+      : "text-tinta-suave hover:text-tinta"
   }`;
 }
 
@@ -20,7 +26,7 @@ export function GlossaryFiltersBar({ filters, onChange }: GlossaryFiltersProps) 
 
   return (
     <section aria-label="Busca e filtros" className="flex flex-col gap-3">
-      <div className="flex items-center gap-3 border border-tinta bg-papel px-3">
+      <div className="superficie flex items-center gap-3 border-2 border-tinta bg-papel px-3">
         <label htmlFor="busca" className="shrink-0 text-[15px]">
           Buscar
         </label>

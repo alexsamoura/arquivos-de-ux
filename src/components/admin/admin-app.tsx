@@ -157,7 +157,7 @@ function TermManager() {
     <div className="flex flex-col gap-12">
       <section aria-label="Busca e nova ficha" className="flex flex-col gap-3">
         <div className="flex flex-col gap-3 sm:flex-row">
-          <label className="flex flex-1 items-center gap-3 border border-tinta bg-papel px-3">
+          <label className="superficie flex flex-1 items-center gap-3 border-2 border-tinta bg-papel px-3">
             <span className="shrink-0 text-[15px]">Buscar</span>
             <input
               type="search"
@@ -191,9 +191,9 @@ function TermManager() {
         <p className="label text-tinta-suave">
           {visible.length} de {terms.length} fichas
         </p>
-        <ul className="flex flex-col border-t border-tinta">
+        <ul className="flex flex-col border-t-2 border-tinta">
           {visible.map((term) => (
-            <li key={term.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-tinta py-3">
+            <li key={term.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b-2 border-tinta py-3">
               <div className="flex min-w-0 flex-col gap-1">
                 <span className="text-[15px]">{term.termo}</span>
                 <span className="label text-tinta-suave">{term.categoria}</span>

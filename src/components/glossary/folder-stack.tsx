@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type 
 import { normalize } from "@/lib/glossary/filters";
 import { EMPTY_PROGRESS, type Drawer, type DrawerId, type ProgressMap, type Term, type TermProgress } from "@/lib/glossary/types";
 import { DrawerCabinet, DrawerFace, termCount } from "./drawer-cabinet";
-import { FolderShape, STEP, TAB_H, TabLabel, tabWidthFor, type TabGeometry } from "./folder-shape";
+import { FolderShape, HALF_STROKE, STEP, STROKE, TAB_H, TabLabel, tabWidthFor, type TabGeometry } from "./folder-shape";
 import { focusForKeyboard } from "./input-modality";
 import { LIFT_BASE_Y, LIFT_EASE, LiftedFolder, prefersReducedMotion } from "./lifted-folder";
 import { useElementSize } from "./use-element-size";
@@ -382,9 +382,9 @@ function tabFor(
  */
 function DrawerWalls({ width, walls }: { width: number; walls: DrawerGeometry["walls"] }) {
   const { top, bottom, outerAt, innerAt } = walls;
-  const y0 = top + 0.5;
-  const left = (x: number) => x + 0.5;
-  const right = (x: number) => width - x - 0.5;
+  const y0 = top + HALF_STROKE;
+  const left = (x: number) => x + HALF_STROKE;
+  const right = (x: number) => width - x - HALF_STROKE;
   const side = (at: (x: number) => number) =>
     `M${at(outerAt(bottom))} ${bottom} L${at(outerAt(top))} ${y0} L${at(innerAt(top))} ${y0} L${at(innerAt(bottom))} ${bottom}`;
 
@@ -401,7 +401,7 @@ function DrawerWalls({ width, walls }: { width: number; walls: DrawerGeometry["w
         d={`${side(left)} ${side(right)} M${left(innerAt(top))} ${y0} H${right(innerAt(top))}`}
         fill="none"
         stroke="var(--tinta)"
-        strokeWidth={1}
+        strokeWidth={STROKE}
         strokeLinejoin="round"
       />
     </svg>
@@ -505,7 +505,7 @@ interface SheetProps {
 /** Pasta fechada: forma completa (aba, laterais curtas, base), por cima da base da anterior. */
 function Sheet({ id, style, width, tab, filledTab, drawn = true, children }: SheetProps) {
   return (
-    <div id={id} className="sheet-enter group relative mx-auto" style={{ ...style, height: SHEET_H }}>
+    <div id={id} className="superficie sheet-enter group relative mx-auto" style={{ ...style, height: SHEET_H }}>
       {drawn ? (
         <FolderShape width={width} height={SHEET_BODY_H} tab={tab} filledTab={filledTab} />
       ) : null}

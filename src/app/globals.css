@@ -1,17 +1,45 @@
 @import "tailwindcss";
 
 /*
- * Paleta única do arquivo. Contraste medido:
- * --tinta-suave: 6.2:1 sobre --papel, 5.4:1 sobre --fundo.
- * --carimbo: 6.2:1 sobre --papel.
+ * Paleta de fichário: fundo verde-petróleo, superfícies creme, contorno grafite,
+ * destaques em magenta e azul royal.
+ *
+ * A tinta depende de onde está. Sobre o fundo escuro, ela é creme; dentro das
+ * superfícies creme (classe .superficie: fichas, abas, gavetas, campos), é
+ * grafite. Assim o mesmo text-tinta / border-tinta fica legível nos dois lugares.
+ * --contra é o oposto da tinta no mesmo lugar (texto de botão invertido no hover).
+ *
+ * Contraste medido (mínimo 4.5:1 para texto, 3:1 para marcas):
+ * fundo:      tinta 7.3:1 · tinta-suave 5.1:1 · carimbo 5.1:1
+ * superfície: tinta 15:1 · tinta-suave 7.6:1 · carimbo 6.0:1 · azul 7.3:1
+ *             destaque (magenta, só marcas e sublinhados) 4.35:1
+ * O magenta e o azul somem direto no fundo (1.7:1 e 1.0:1): só aparecem sobre creme.
  */
 :root {
-  --papel: #f5f2eb;
-  --fundo: #e8e3da;
-  --tinta: #1c1c1c;
-  --tinta-suave: #5a5a5a;
-  --carimbo: #a3322a;
-  color-scheme: light;
+  --papel: #f4eedc;
+  --fundo: #1e5647;
+  --grafite: #1a1a1a;
+  --destaque: #d90368;
+  --azul: #2541b2;
+
+  /* Sobre o fundo verde-petróleo. */
+  --tinta: #f4eedc;
+  --tinta-suave: #b7cfc4;
+  --carimbo: #ffb3d4;
+  --contra: var(--fundo);
+  color-scheme: dark;
+}
+
+/* Dentro das superfícies creme. Na camada components para os utilitários de cor
+   aplicados no mesmo elemento continuarem valendo. */
+@layer components {
+  .superficie {
+    --tinta: var(--grafite);
+    --tinta-suave: #4a4a4a;
+    --carimbo: #b0025a;
+    --contra: var(--papel);
+    color: var(--tinta);
+  }
 }
 
 @theme inline {
@@ -20,6 +48,9 @@
   --color-tinta: var(--tinta);
   --color-tinta-suave: var(--tinta-suave);
   --color-carimbo: var(--carimbo);
+  --color-contra: var(--contra);
+  --color-destaque: var(--destaque);
+  --color-azul: var(--azul);
   --font-mono: var(--font-plex-mono), ui-monospace, monospace;
   --font-serif: var(--font-plex-serif), Georgia, serif;
   --font-carimbo: var(--font-archivo-black), "Arial Black", sans-serif;
@@ -39,7 +70,7 @@
   }
 
   :focus-visible {
-    outline: 1px dashed var(--tinta);
+    outline: 2px dashed var(--tinta);
     outline-offset: 3px;
   }
 }
@@ -78,10 +109,10 @@
     filter: url(#tinta-carimbo);
   }
 
-  /* Carimbo de "revisar": tinta vermelha, levemente torto, sem moldura. */
+  /* Carimbo de "revisar": azul royal, levemente torto, sem moldura (só aparece sobre creme). */
   .stamp {
     display: inline-block;
-    color: var(--carimbo);
+    color: var(--azul);
     font-size: 12px;
     font-weight: 600;
     line-height: 1;

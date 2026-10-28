@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 import type { Drawer, DrawerId } from "@/lib/glossary/types";
+import { HALF_STROKE, STROKE } from "./folder-shape";
 import { focusForKeyboard } from "./input-modality";
 
 export const DRAWER_H = 76;
@@ -31,7 +32,7 @@ const PANEL_RIM = 5;
 export function DrawerFace({ label, footer, muted = false, height = DRAWER_H, panelWidth }: DrawerFaceProps) {
   return (
     <div
-      className={`relative flex flex-col items-center justify-center gap-2.5 ${panelWidth ? "pt-1" : "border border-tinta bg-papel"}`}
+      className={`superficie relative flex flex-col items-center justify-center gap-2.5 ${panelWidth ? "pt-1" : "border-2 border-tinta bg-papel"}`}
       style={{ height: panelWidth ? height : undefined, minHeight: panelWidth ? undefined : height }}
     >
       {panelWidth ? (
@@ -43,20 +44,20 @@ export function DrawerFace({ label, footer, muted = false, height = DRAWER_H, pa
           className="pointer-events-none absolute inset-0 block"
         >
           <path
-            d={`M0.5 0.5 H${panelWidth - 0.5} V${height - 0.5} H0.5 Z M0.5 ${PANEL_RIM + 0.5} H${panelWidth - 0.5}`}
+            d={`M${HALF_STROKE} ${HALF_STROKE} H${panelWidth - HALF_STROKE} V${height - HALF_STROKE} H${HALF_STROKE} Z M${HALF_STROKE} ${PANEL_RIM + HALF_STROKE} H${panelWidth - HALF_STROKE}`}
             fill="var(--papel)"
             stroke="var(--tinta)"
-            strokeWidth={1}
+            strokeWidth={STROKE}
             strokeLinejoin="round"
           />
         </svg>
       ) : null}
       <span
-        className={`relative flex min-w-32 flex-col items-center gap-1.5 border border-tinta bg-papel px-4 py-2 ${muted ? "text-tinta-suave" : ""}`}
+        className={`relative flex min-w-32 flex-col items-center gap-1.5 border-2 border-tinta bg-papel px-4 py-2 ${muted ? "text-tinta-suave" : ""}`}
       >
         <span className="tab-label text-[15px] font-medium">{label}</span>
       </span>
-      <span aria-hidden className="relative block h-2 w-16 rounded-full border border-tinta" />
+      <span aria-hidden className="relative block h-2 w-16 rounded-full border-2 border-tinta" />
       {footer ? <span className="relative">{footer}</span> : null}
     </div>
   );
@@ -89,7 +90,7 @@ export function DrawerCabinet({ drawers, rangeCounts, focusRange, onOpen, hasRes
         role="list"
         aria-label="Gavetas do arquivo"
         // Ordem alfabética de cima para baixo: a 1ª coluna inteira, depois a 2ª.
-        className="grid grid-cols-1 gap-2 border border-tinta p-2.5 sm:grid-flow-col sm:grid-cols-2"
+        className="grid grid-cols-1 gap-2 border-2 border-tinta p-2.5 sm:grid-flow-col sm:grid-cols-2"
         style={{ gridTemplateRows: `repeat(${Math.ceil(drawers.length / 2)}, auto)` }}
       >
         {drawers.map((range) => {

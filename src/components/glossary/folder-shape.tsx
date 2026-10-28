@@ -4,6 +4,10 @@ import type { ReactNode } from "react";
 export const TAB_H = 24;
 /** Quanto cada pasta desce em relação à de trás. */
 export const STEP = 30;
+/** Espessura do contorno de pastas, abas, paredes e frente da gaveta (estilo fichário). */
+export const STROKE = 2;
+/** Metade do traço: as coordenadas caem no meio dele para a linha sair nítida. */
+export const HALF_STROKE = STROKE / 2;
 /** Avanço horizontal da inclinação lateral da aba. */
 const SLANT = 10;
 /** Respiro interno da aba, somando os dois lados, entre as laterais inclinadas e o texto. */
@@ -47,8 +51,8 @@ export function ReviewStamp({ className = "" }: { className?: string }) {
 /** Tique de traço fino para termos já vistos, no mesmo peso do contorno das pastas. */
 function SeenMark() {
   return (
-    <svg aria-hidden width="10" height="8" viewBox="0 0 10 8" className="shrink-0 text-tinta-suave">
-      <path d="M1 4.2 L3.8 7 L9 1" fill="none" stroke="currentColor" strokeWidth={1.25} strokeLinecap="round" strokeLinejoin="round" />
+    <svg aria-hidden width="10" height="8" viewBox="0 0 10 8" className="shrink-0 text-destaque">
+      <path d="M1 4.2 L3.8 7 L9 1" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -92,12 +96,12 @@ export function TabLabel({
  * Forma fechada: topo com aba, laterais curtas, cantos de cima arredondados e base.
  */
 function folderPath(width: number, height: number, tab: TabGeometry | null) {
-  const left = 0.5;
-  const right = width - 0.5;
-  const top = TAB_H + 0.5;
-  const bottom = height - 0.5;
+  const left = HALF_STROKE;
+  const right = width - HALF_STROKE;
+  const top = TAB_H + HALF_STROKE;
+  const bottom = height - HALF_STROKE;
   const tabEdge = tab
-    ? `H${tab.x} L${tab.x + SLANT} 0.5 H${tab.x + tab.width - SLANT} L${tab.x + tab.width} ${top} `
+    ? `H${tab.x} L${tab.x + SLANT} ${HALF_STROKE} H${tab.x + tab.width - SLANT} L${tab.x + tab.width} ${top} `
     : "";
   const r = 3;
   return (
@@ -108,8 +112,8 @@ function folderPath(width: number, height: number, tab: TabGeometry | null) {
 }
 
 function tabPath(tab: TabGeometry) {
-  const top = TAB_H + 0.5;
-  return `M${tab.x} ${top} L${tab.x + SLANT} 0.5 H${tab.x + tab.width - SLANT} L${tab.x + tab.width} ${top} Z`;
+  const top = TAB_H + HALF_STROKE;
+  return `M${tab.x} ${top} L${tab.x + SLANT} ${HALF_STROKE} H${tab.x + tab.width - SLANT} L${tab.x + tab.width} ${top} Z`;
 }
 
 interface FolderShapeProps {
@@ -133,11 +137,11 @@ export function FolderShape({ width, height, tab, filledTab = false }: FolderSha
         d={folderPath(width, height, tab)}
         fill="var(--papel)"
         stroke="var(--tinta)"
-        strokeWidth={1}
+        strokeWidth={STROKE}
         strokeLinejoin="round"
       />
       {filledTab && tab ? (
-        <path d={tabPath(tab)} fill="var(--tinta)" stroke="var(--tinta)" strokeWidth={1} strokeLinejoin="round" />
+        <path d={tabPath(tab)} fill="var(--tinta)" stroke="var(--tinta)" strokeWidth={STROKE} strokeLinejoin="round" />
       ) : null}
     </svg>
   );

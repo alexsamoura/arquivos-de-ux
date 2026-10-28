@@ -57,7 +57,7 @@ export function TermEditor({ term, onSave, onCancel }: TermEditorProps) {
     <form
       onSubmit={submit}
       aria-label={term ? `Editar a ficha ${term.termo}` : "Nova ficha"}
-      className="flex flex-col gap-3 border border-tinta bg-papel p-5"
+      className="superficie flex flex-col gap-3 border-2 border-tinta bg-papel p-5"
       noValidate
     >
       <p className="label">{term ? `Editando: ${term.termo}` : "Nova ficha"}</p>
