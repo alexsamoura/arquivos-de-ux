@@ -87,23 +87,21 @@ export function GlossaryApp() {
       ) : (
         <section
           ref={stackTopRef}
-          {...(drawerLabel ? { "aria-label": `Gaveta ${drawerLabel}` } : { "aria-labelledby": "titulo-secao" })}
+          aria-label={drawerLabel ? `Gaveta ${drawerLabel}` : "Gaveteiro"}
           className="flex scroll-mt-4 flex-col gap-3"
         >
-          <div className="flex flex-col gap-2">
+          {/* Na capa não há título visível: o gaveteiro fala por si. Dentro de uma
+              gaveta, o caminho diz onde se está e leva de volta. */}
+          {drawerLabel ? (
             <ArchivePath
               rangeLabel={drawerLabel}
               openTerm={openTerm}
               onGoToLetters={() => selectRange(null)}
               onGoToRange={() => setOpenId(null)}
             />
-            {/* Título só na capa; dentro de uma gaveta, o caminho já diz onde se está. */}
-            {drawerLabel ? null : (
-              <h2 id="titulo-secao" className="text-[20px] leading-tight font-semibold">
-                Gaveteiro
-              </h2>
-            )}
-          </div>
+          ) : (
+            <h2 className="sr-only">Gaveteiro</h2>
+          )}
           <FolderStack
             drawers={drawers}
             activeRange={activeRange}
