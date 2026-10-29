@@ -6,8 +6,9 @@ import { FolderShape, ReviewStamp, STEP, TAB_H, TabLabel, type TabGeometry } fro
 import { focusForKeyboard } from "./input-modality";
 import { useElementSize } from "./use-element-size";
 
-const OPEN_MS = 480;
-const CLOSE_MS = 380;
+/** Abrir uma ficha é a ação mais repetida do estudo: o movimento tem que ser curto. */
+export const OPEN_MS = 320;
+const CLOSE_MS = 240;
 export const LIFT_EASE = "cubic-bezier(0.2, 0.7, 0.2, 1)";
 /**
  * Onde fica a base da pasta erguida, medida do topo da camada dela na pilha:
@@ -134,7 +135,9 @@ export function LiftedFolder(props: LiftedFolderProps) {
   }, []);
 
   const titleId = `ficha-${term.id}-titulo`;
-  const buttonClass = "label cursor-pointer border-2 border-tinta px-3 py-2.5 hover:bg-tinta hover:text-contra";
+  // Afunda de leve no clique (0.96), como um botão físico.
+  const buttonClass =
+    "label cursor-pointer border-2 border-tinta px-3 py-2.5 hover:bg-tinta hover:text-contra motion-safe:transition-transform motion-safe:duration-100 active:scale-[0.96]";
 
   return (
     <section

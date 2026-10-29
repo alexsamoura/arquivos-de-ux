@@ -25,4 +25,4 @@ export const fieldClass =
 
 /** Botão com contorno, como "Já sabia" e "Revisar depois" na ficha. */
 export const buttonClass =
-  "label cursor-pointer border-2 border-tinta px-3 py-2.5 hover:bg-tinta hover:text-contra disabled:cursor-default disabled:opacity-60 disabled:hover:bg-transparent disabled:hover:text-tinta";
+  "label cursor-pointer border-2 border-tinta px-3 py-2.5 hover:bg-tinta hover:text-contra motion-safe:transition-transform motion-safe:duration-100 enabled:active:scale-[0.96] disabled:cursor-default disabled:opacity-60 disabled:hover:bg-transparent disabled:hover:text-tinta";

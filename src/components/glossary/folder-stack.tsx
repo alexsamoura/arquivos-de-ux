@@ -6,7 +6,7 @@ import { EMPTY_PROGRESS, type Drawer, type DrawerId, type ProgressMap, type Term
 import { DrawerCabinet, DrawerFace, termCount } from "./drawer-cabinet";
 import { FolderShape, HALF_STROKE, STEP, STROKE, TAB_H, TabLabel, tabWidthFor, type TabGeometry } from "./folder-shape";
 import { focusForKeyboard } from "./input-modality";
-import { LIFT_BASE_Y, LIFT_EASE, LiftedFolder, prefersReducedMotion } from "./lifted-folder";
+import { LIFT_BASE_Y, LIFT_EASE, LiftedFolder, OPEN_MS, prefersReducedMotion } from "./lifted-folder";
 import { useElementSize } from "./use-element-size";
 
 /** Altura de layout de uma pasta fechada: aba + faixa visível + folga escondida. */
@@ -36,6 +36,8 @@ const NARROW_WIDTH = 480;
 const TERM_TAB_POSITIONS = ["left", "center", "right"] as const;
 /** Intervalo entre a entrada de uma pasta e a próxima ao abrir a gaveta. */
 const ENTER_STAGGER_MS = 30;
+/** Teto do atraso: numa gaveta cheia (P tem 24 camadas), as últimas pastas entram juntas. */
+const ENTER_STAGGER_MAX_MS = 240;
 const DRAWER_SLIDE_MS = 460;
 
 interface FolderStackProps {
@@ -215,8 +217,8 @@ export function FolderStack(props: FolderStackProps) {
       {/* overflow: clip (e não hidden) corta o que passa da frente da gaveta sem criar
           uma área rolável, que o foco ou o scrollIntoView poderiam deslocar. */}
       <div
-        className="overflow-clip motion-safe:transition-[padding] motion-safe:duration-[480ms]"
-        style={{ paddingTop: liftSpace, transitionTimingFunction: LIFT_EASE }}
+        className="overflow-clip motion-safe:transition-[padding]"
+        style={{ paddingTop: liftSpace, transitionDuration: `${OPEN_MS}ms`, transitionTimingFunction: LIFT_EASE }}
       >
         <div className="relative" style={{ paddingTop: PILE_PT }}>
           {containerWidth > 0 && layers.length > 0 ? (
@@ -230,7 +232,7 @@ export function FolderStack(props: FolderStackProps) {
                 width,
                 zIndex: index + 1,
                 marginTop: index === 0 ? 0 : STEP - SHEET_H,
-                animationDelay: `${index * ENTER_STAGGER_MS}ms`,
+                animationDelay: `${Math.min(index * ENTER_STAGGER_MS, ENTER_STAGGER_MAX_MS)}ms`,
               };
 
               if (layer.kind === "divider") {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Drawer, DrawerId } from "@/lib/glossary/types";
 import { HALF_STROKE, STROKE } from "./folder-shape";
 import { focusForKeyboard } from "./input-modality";
@@ -73,9 +73,18 @@ interface DrawerCabinetProps {
   hasResults: boolean;
 }
 
+/** A capa já apareceu nesta visita: só a volta de uma gaveta anima as gavetas. */
+let coverShown = false;
+
 /** Capa do arquivo: gaveteiro com uma gaveta por faixa de letras. */
 export function DrawerCabinet({ drawers, rangeCounts, focusRange, onOpen, hasResults }: DrawerCabinetProps) {
   const listRef = useRef<HTMLDivElement>(null);
+  // Lido na montagem: no primeiro carregamento as gavetas aparecem já prontas.
+  const [animateEnter] = useState(() => coverShown);
+
+  useEffect(() => {
+    coverShown = true;
+  }, []);
 
   useEffect(() => {
     if (!focusRange) return;
@@ -97,7 +106,7 @@ export function DrawerCabinet({ drawers, rangeCounts, focusRange, onOpen, hasRes
           const count = rangeCounts[range.id];
           const empty = count === 0;
           return (
-            <div role="listitem" key={range.id} className="sheet-enter">
+            <div role="listitem" key={range.id} className={animateEnter ? "sheet-enter" : undefined}>
               <button
                 type="button"
                 data-range={range.id}
